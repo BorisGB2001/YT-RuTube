@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="plugin" group="system" method="upgrade">
+    <name>plg_system_ytrutube</name>
+    <author>BorisGB</author>
+    <authorUrl>https://github.com/BorisGB2001/YT-RuTube</authorUrl>
+    <creationDate>October 2026</creationDate>
+    <copyright>Copyright (C) 2026 BorisGB</copyright>
+    <license>GNU General Public License version 2 or later</license>
+    <version>1.0.0</version>
+    <description>PLG_SYSTEM_YTRUTUBE_XML_DESCRIPTION</description>
+    <scriptfile>script.php</scriptfile>
+    <files>
+        <filename plugin="ytrutube">ytrutube.php</filename>
+        <folder>modules</folder>
+        <folder>language</folder>
+    </files>
+    <languages folder="language">
+        <language tag="en-GB">en-GB/plg_system_ytrutube.ini</language>
+        <language tag="en-GB">en-GB/plg_system_ytrutube.sys.ini</language>
+        <language tag="ru-RU">ru-RU/plg_system_ytrutube.ini</language>
+        <language tag="ru-RU">ru-RU/plg_system_ytrutube.sys.ini</language>
+    </languages>
+    <updateservers>
+        <server type="extension" priority="1" name="YT RuTube">https://raw.githubusercontent.com/BorisGB2001/YT-RuTube/main/updates/plg_system_ytrutube.xml</server>
+    </updateservers>
+    <config>
+        <fields name="params">
+            <fieldset name="basic">
+                <field name="cache_lifetime" type="number" default="720" min="1" max="43200"
+                       label="PLG_SYSTEM_YTRUTUBE_FIELD_CACHE_LIFETIME_LABEL"
+                       description="PLG_SYSTEM_YTRUTUBE_FIELD_CACHE_LIFETIME_DESC"/>
+            </fieldset>
+        </fields>
+    </config>
+</extension>

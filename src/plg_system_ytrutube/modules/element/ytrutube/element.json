@@ -1,0 +1,301 @@
+{
+  "@import": "./element.php",
+  "name": "ytrutube",
+  "title": "RuTube",
+  "group": "Multimedia",
+  "icon": "${url:images/icon.svg}",
+  "iconSmall": "${url:images/iconSmall.svg}",
+  "element": true,
+  "width": 500,
+  "defaults": {
+    "load_mode": "click",
+    "ratio": "16:9",
+    "ratio_custom": "16:9",
+    "pause_others": true,
+    "fetch_meta": true,
+    "show_title": true,
+    "title_position": "bottom",
+    "show_duration": true,
+    "overlay": "gradient",
+    "image_hover": true,
+    "play_style": "rutube",
+    "play_size": "medium",
+    "play_color": "#ed143b",
+    "play_icon_color": "#ffffff",
+    "border_radius": "small",
+    "schema": true,
+    "margin_top": "default",
+    "margin_bottom": "default"
+  },
+  "placeholder": {
+    "props": {
+      "video": "https://rutube.ru/video/2a55da78983c76a6fcfbfb324313fc4b/"
+    }
+  },
+  "templates": {
+    "render": "./templates/template.php",
+    "content": "./templates/content.php"
+  },
+  "fields": {
+    "video": {
+      "label": "RuTube Video",
+      "description": "Video link (rutube.ru/video/…, /shorts/…, /video/private/…?p=…), iframe embed code or video ID. A <code>?t=90</code> parameter in the link sets the start time.",
+      "source": true
+    },
+    "title": {
+      "label": "Title",
+      "description": "If empty, the video title from RuTube is used.",
+      "source": true
+    },
+    "image": {
+      "label": "Poster",
+      "description": "If empty, the RuTube video poster is used.",
+      "type": "image",
+      "source": true
+    },
+    "image_alt": {
+      "label": "Poster Alt",
+      "source": true,
+      "enable": "image"
+    },
+    "load_mode": {
+      "label": "Loading",
+      "description": "The RuTube player is not loaded until it is needed: the page loads faster and no third-party cookies are set.",
+      "type": "select",
+      "options": {
+        "On click (in place)": "click",
+        "On click (in a lightbox)": "lightbox",
+        "When scrolled into view": "viewport"
+      }
+    },
+    "ratio": {
+      "label": "Aspect Ratio",
+      "type": "select",
+      "options": {
+        "16:9": "16:9",
+        "4:3": "4:3",
+        "21:9": "21:9",
+        "1:1": "1:1",
+        "4:5": "4:5",
+        "9:16 (Shorts)": "9:16",
+        "Custom": "custom"
+      }
+    },
+    "ratio_custom": {
+      "label": "Custom Ratio",
+      "description": "For example <code>3:2</code> or <code>2.35:1</code>.",
+      "show": "ratio == 'custom'"
+    },
+    "start": {
+      "label": "Start At",
+      "description": "Seconds or a time like <code>1:30</code>. Overrides <code>?t=</code> from the link."
+    },
+    "mute": {
+      "label": "Sound",
+      "type": "checkbox",
+      "text": "Start muted"
+    },
+    "skin_color": {
+      "label": "Player Color",
+      "description": "Color of the RuTube player controls.",
+      "type": "color"
+    },
+    "pause_others": {
+      "type": "checkbox",
+      "text": "Pause other RuTube videos on the page",
+      "show": "load_mode != 'lightbox'"
+    },
+    "fetch_meta": {
+      "label": "RuTube Data",
+      "description": "Get the title, poster and duration from the RuTube API. The result is cached.",
+      "type": "checkbox",
+      "text": "Load title and duration"
+    },
+    "show_title": {
+      "label": "Display",
+      "type": "checkbox",
+      "text": "Show the title"
+    },
+    "show_duration": {
+      "type": "checkbox",
+      "text": "Show the duration",
+      "enable": "fetch_meta"
+    },
+    "title_position": {
+      "label": "Title Position",
+      "type": "select",
+      "options": {
+        "Top": "top",
+        "Bottom": "bottom"
+      },
+      "enable": "show_title"
+    },
+    "overlay": {
+      "label": "Overlay",
+      "type": "select",
+      "options": {
+        "None": "",
+        "Light": "light",
+        "Dark": "dark",
+        "Gradient": "gradient"
+      }
+    },
+    "image_hover": {
+      "label": "Hover",
+      "type": "checkbox",
+      "text": "Zoom the poster on hover"
+    },
+    "play_style": {
+      "label": "Style",
+      "type": "select",
+      "options": {
+        "RuTube": "rutube",
+        "Circle": "circle",
+        "Outline": "outline",
+        "Icon only": "minimal",
+        "None": "none"
+      }
+    },
+    "play_size": {
+      "label": "Size",
+      "type": "select",
+      "options": {
+        "Small": "small",
+        "Medium": "medium",
+        "Large": "large"
+      },
+      "enable": "play_style != 'none'"
+    },
+    "play_color": {
+      "label": "Button Color",
+      "type": "color",
+      "enable": "play_style != 'none' && play_style != 'minimal'"
+    },
+    "play_icon_color": {
+      "label": "Icon Color",
+      "type": "color",
+      "enable": "play_style != 'none'"
+    },
+    "border_radius": {
+      "label": "Border Radius",
+      "type": "select",
+      "options": {
+        "None": "",
+        "Small": "small",
+        "Medium": "medium",
+        "Large": "large"
+      }
+    },
+    "box_shadow": {
+      "label": "Box Shadow",
+      "type": "select",
+      "options": {
+        "None": "",
+        "Small": "small",
+        "Medium": "medium",
+        "Large": "large",
+        "X-Large": "xlarge"
+      }
+    },
+    "schema": {
+      "label": "SEO",
+      "type": "checkbox",
+      "text": "Add VideoObject structured data (JSON-LD)",
+      "enable": "fetch_meta"
+    },
+    "position": "${builder.position}",
+    "position_left": "${builder.position_left}",
+    "position_right": "${builder.position_right}",
+    "position_top": "${builder.position_top}",
+    "position_bottom": "${builder.position_bottom}",
+    "position_z_index": "${builder.position_z_index}",
+    "blend": "${builder.blend}",
+    "margin_top": "${builder.margin_top}",
+    "margin_bottom": "${builder.margin_bottom}",
+    "maxwidth": "${builder.maxwidth}",
+    "maxwidth_breakpoint": "${builder.maxwidth_breakpoint}",
+    "block_align": "${builder.block_align}",
+    "block_align_breakpoint": "${builder.block_align_breakpoint}",
+    "block_align_fallback": "${builder.block_align_fallback}",
+    "animation": "${builder.animation}",
+    "_parallax_button": "${builder._parallax_button}",
+    "visibility": "${builder.visibility}",
+    "name": "${builder.name}",
+    "status": "${builder.status}",
+    "source": "${builder.source}",
+    "id": "${builder.id}",
+    "class": "${builder.cls}",
+    "attributes": "${builder.attrs}",
+    "css": {
+      "label": "CSS",
+      "description": "Enter your own custom CSS. The following selectors will be prefixed automatically for this element: <code>.el-element</code>, <code>.el-image</code>, <code>.el-title</code>, <code>.el-play</code>",
+      "type": "editor",
+      "editor": "code",
+      "mode": "css",
+      "attrs": {
+        "debounce": 500,
+        "hints": [".el-element", ".el-image", ".el-title", ".el-play"]
+      }
+    },
+    "transform": "${builder.transform}"
+  },
+  "fieldset": {
+    "default": {
+      "type": "tabs",
+      "fields": [
+        {
+          "title": "Content",
+          "fields": ["video", "title", "image", "image_alt"]
+        },
+        {
+          "title": "Settings",
+          "fields": [
+            {
+              "label": "Video",
+              "type": "group",
+              "divider": true,
+              "fields": ["load_mode", "ratio", "ratio_custom", "start", "mute", "skin_color", "pause_others", "fetch_meta"]
+            },
+            {
+              "label": "Poster",
+              "type": "group",
+              "divider": true,
+              "fields": ["show_title", "show_duration", "title_position", "overlay", "image_hover", "border_radius", "box_shadow"]
+            },
+            {
+              "label": "Play Button",
+              "type": "group",
+              "divider": true,
+              "fields": ["play_style", "play_size", "play_color", "play_icon_color"]
+            },
+            {
+              "label": "General",
+              "type": "group",
+              "fields": [
+                "schema",
+                "position",
+                "position_left",
+                "position_right",
+                "position_top",
+                "position_bottom",
+                "position_z_index",
+                "blend",
+                "margin_top",
+                "margin_bottom",
+                "maxwidth",
+                "maxwidth_breakpoint",
+                "block_align",
+                "block_align_breakpoint",
+                "block_align_fallback",
+                "animation",
+                "_parallax_button",
+                "visibility"
+              ]
+            }
+          ]
+        },
+        "${builder.advanced}"
+      ]
+    }
+  }
+}
