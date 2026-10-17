@@ -5,7 +5,7 @@ require __DIR__ . '/../src/plg_system_ytrutube/modules/src/RutubeHelper.php';
 
 use YtRutube\RutubeHelper;
 
-$id = '2a55da78983c76a6fcfbfb324313fc4b';
+$id = '5c3731210a7b462285456a4fb90e9009';
 $video = static fn($key = '', $start = 0) => ['id' => $id, 'key' => $key, 'start' => $start];
 
 $cases = [

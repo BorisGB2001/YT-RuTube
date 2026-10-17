@@ -44,7 +44,7 @@
   "fields": {
     "video": {
       "label": "RuTube Video",
-      "description": "Video link, e.g. <code>https://rutube.ru/video/ae0b2c88b66f85fb0b7249f2cd9b97ef/</code>, Shorts, private video (<code>?p=</code>), embed link, iframe code or video ID. A <code>?t=90</code> parameter sets the start time. Until a link is set, the builder shows a placeholder and the site shows nothing.",
+      "description": "Video link, e.g. <code>https://rutube.ru/video/5c3731210a7b462285456a4fb90e9009/</code>, Shorts, private video (<code>?p=</code>), embed link, iframe code or video ID. A <code>?t=90</code> parameter sets the start time. Until a link is set, the builder shows a placeholder and the site shows nothing.",
       "source": true
     },
     "title": {

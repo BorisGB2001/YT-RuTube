@@ -11,7 +11,15 @@
 
 A regular RuTube embed loads the whole player, its scripts, ads and counters with the page. YT RuTube renders only an image and a button; the iframe appears after a click. Pages load faster and no third-party cookies are set before the visitor decides to watch.
 
-![Posters](docs/screenshots/posters.png)
+| Poster | Own player controls |
+|---|---|
+| ![Poster](docs/screenshots/poster.jpg) | ![Own controls](docs/screenshots/controls.jpg) |
+
+| Circle play button, title on top | Builder placeholder until a link is set |
+|---|---|
+| ![Circle button](docs/screenshots/poster-circle.jpg) | ![Placeholder](docs/screenshots/placeholder.png) |
+
+*Video in the screenshots: [About Modern Machinery](https://rutube.ru/video/5c3731210a7b462285456a4fb90e9009/) on RuTube.*
 
 ## Features
 
@@ -43,7 +51,7 @@ A regular RuTube embed loads the whole player, its scripts, ads and counters wit
 
 1. Download `plg_system_ytrutube_<version>.zip` from [Releases](../../releases).
 2. In Joomla go to *System → Install → Extensions* and upload the file. The plugin is enabled automatically.
-3. Open *YOOtheme → Builder*, click **+** and add the **RuTube** element. Paste a video link, for example `https://rutube.ru/video/ae0b2c88b66f85fb0b7249f2cd9b97ef/`.
+3. Open *YOOtheme → Builder*, click **+** and add the **RuTube** element. Paste a video link, for example `https://rutube.ru/video/5c3731210a7b462285456a4fb90e9009/`.
 
 To update, install the new version over the old one or use *System → Update → Extensions*.
 
