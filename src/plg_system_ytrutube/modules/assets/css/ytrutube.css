@@ -220,3 +220,169 @@
     .ytrutube__poster { transition: none; }
     .ytrutube--active .ytrutube__play { animation: none; }
 }
+
+/* Placeholder shown in the builder until a video link is set */
+
+.ytrutube__poster--stub {
+    background: radial-gradient(120% 120% at 20% 0%, #2a1f6b 0%, #100943 55%, #07041f 100%);
+    cursor: default;
+}
+
+.ytrutube__stub-text {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 16px;
+    z-index: 1;
+    padding: 0 20px;
+    font-size: .9rem;
+    text-align: center;
+    opacity: .75;
+}
+
+/* Own controls: a shield over the RuTube player and a control bar */
+
+.ytrutube__shield {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.ytrutube__shield:focus-visible {
+    outline: 3px solid var(--ytrutube-play-bg);
+    outline-offset: -3px;
+}
+
+.ytrutube__controls {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 28px 10px 8px;
+    background: linear-gradient(to top, rgba(0, 0, 0, .7), rgba(0, 0, 0, 0));
+    color: #fff;
+    transition: opacity .3s ease, visibility .3s ease;
+}
+
+.ytrutube__box--idle .ytrutube__controls {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.ytrutube__box--idle .ytrutube__shield { cursor: none; }
+
+.ytrutube__control {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    transition: background-color .2s ease;
+}
+
+.ytrutube__control:hover { background: rgba(255, 255, 255, .15); }
+
+.ytrutube__control:focus-visible {
+    outline: 2px solid var(--ytrutube-play-bg);
+    outline-offset: 0;
+}
+
+.ytrutube__control svg { width: 24px; height: 24px; }
+
+.ytrutube__time {
+    flex: none;
+    padding: 0 8px;
+    font-size: .85rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.ytrutube__spacer,
+.ytrutube__progress { flex: 1 1 auto; }
+
+.ytrutube__progress {
+    position: relative;
+    height: 20px;
+    margin: 0 8px;
+    touch-action: none;
+}
+
+.ytrutube__progress::before,
+.ytrutube__progress-fill {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    height: 4px;
+    margin-top: -2px;
+    border-radius: 2px;
+}
+
+.ytrutube__progress::before {
+    right: 0;
+    background: rgba(255, 255, 255, .3);
+}
+
+.ytrutube__progress-fill {
+    width: 0;
+    background: var(--ytrutube-play-bg);
+}
+
+.ytrutube__progress--seek { cursor: pointer; }
+
+.ytrutube__progress--seek:hover::before,
+.ytrutube__progress--seek:hover .ytrutube__progress-fill {
+    height: 6px;
+    margin-top: -3px;
+}
+
+/* Fullscreen */
+
+.ytrutube__box:fullscreen {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto;
+    border-radius: 0;
+    background: #000;
+}
+
+.ytrutube__box--fullscreen {
+    position: fixed !important;
+    inset: 0;
+    z-index: 10010;
+    width: 100% !important;
+    height: 100%;
+    aspect-ratio: auto;
+    border-radius: 0;
+    background: #000;
+}
+
+.ytrutube-noscroll { overflow: hidden; }
+
+/* Lightbox */
+
+.ytrutube-modal .uk-modal-dialog {
+    width: auto;
+    background: transparent;
+}
+
+.ytrutube-modal .ytrutube__box { max-width: none; }
+
+@media (max-width: 639px) {
+    .ytrutube__time { display: none; }
+    .ytrutube__controls { padding: 24px 4px 4px; }
+}

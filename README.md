@@ -23,6 +23,9 @@ A regular RuTube embed loads the whole player, its scripts, ads and counters wit
 - Aspect ratio: 16:9, 4:3, 21:9, 1:1, 4:5, 9:16 (Shorts) or custom.
 - Play button: RuTube style, circle, outline, icon only or none; three sizes, custom colors.
 - Poster overlay (light, dark, gradient), zoom on hover, title (top or bottom), duration badge, border radius, box shadow.
+- **Own player controls** (default): the RuTube player is covered, so viewers can't open RuTube, share, use its settings menu or recommendations — the video plays only in its window and in fullscreen. Every control can be turned off: play/pause, progress bar, seeking, time, sound, fullscreen, pause on click, auto-hide. The full RuTube interface is available as an option.
+- After the video ends the poster is shown again instead of the RuTube end screen with recommendations.
+- Until a video link is set, the builder shows a placeholder with a play button; the site shows nothing.
 - Player options: start time, start muted, player color, pause other RuTube videos on the page. They are applied through the official [RuTube player postMessage API](https://github.com/rutube/RutubePlayerJSAPI).
 - SEO: `VideoObject` structured data (JSON-LD) with title, description, poster, duration and publication date.
 - Accessible: the poster is a `<button>` with an `aria-label`, keyboard focus, `<noscript>` fallback.
@@ -40,7 +43,7 @@ A regular RuTube embed loads the whole player, its scripts, ads and counters wit
 
 1. Download `plg_system_ytrutube_<version>.zip` from [Releases](../../releases).
 2. In Joomla go to *System → Install → Extensions* and upload the file. The plugin is enabled automatically.
-3. Open *YOOtheme → Builder*, click **+** and add the **RuTube** element. Paste a video link, for example `https://rutube.ru/video/2a55da78983c76a6fcfbfb324313fc4b/`.
+3. Open *YOOtheme → Builder*, click **+** and add the **RuTube** element. Paste a video link, for example `https://rutube.ru/video/ae0b2c88b66f85fb0b7249f2cd9b97ef/`.
 
 To update, install the new version over the old one or use *System → Update → Extensions*.
 

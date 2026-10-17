@@ -11,6 +11,7 @@ defined('_JEXEC') or die();
 use Joomla\CMS\Cache\CacheControllerFactoryInterface;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Http\HttpFactory;
+use Joomla\CMS\Language\Text;
 use Joomla\CMS\Uri\Uri;
 use Joomla\Registry\Registry;
 use YOOtheme\Config;
@@ -21,7 +22,7 @@ use function YOOtheme\app;
 
 class RutubeHelper
 {
-    public const VERSION = '1.0.0';
+    public const VERSION = '1.1.0';
 
     /** Retry interval in seconds after a failed API request. */
     private const RETRY_AFTER = 3600;
@@ -220,15 +221,27 @@ class RutubeHelper
 
     /**
      * Resolves the video and prepares everything the template needs.
-     * Returns false when the field holds no RuTube video.
+     * Without a RuTube video the builder shows a placeholder and the site shows nothing.
      */
     public static function prepareRender(object $node): bool
     {
         $props = &$node->props;
         $video = self::parse((string) ($props['video'] ?? ''));
+        $customizer = (bool) app(Config::class)('app.isCustomizer');
+
+        if ($customizer) {
+            $node->attrs['data-preview'] = 'reload';
+        }
 
         if (!$video) {
-            return false;
+            if (!$customizer) {
+                return false;
+            }
+
+            $props['ytrutube'] = ['stub' => true, 'ratio' => self::parseRatio(self::ratio($props))];
+            self::loadAssets();
+
+            return true;
         }
 
         $meta = !empty($props['fetch_meta']) ? self::meta($video['id'], $video['key']) : [];
@@ -260,27 +273,59 @@ class RutubeHelper
             'skinColor' => preg_match('~^[0-9a-f]{6}$~i', $skin) ? $skin : null,
         ];
 
-        $ratio = ($props['ratio'] ?? '16:9') === 'custom' ? (string) ($props['ratio_custom'] ?? '') : (string) ($props['ratio'] ?? '16:9');
-
         $props['ytrutube'] = [
+            'stub' => false,
             'id' => $video['id'],
             'embed' => self::embedUrl($video['id'], $video['key'], $params),
-            'lightbox' => self::embedUrl($video['id'], $video['key'], $params + ['autoplay' => 1]),
             'url' => self::videoUrl($video['id'], $video['key']),
             'poster' => $poster,
             'title' => trim((string) ($props['title'] ?? '')) ?: ($meta['title'] ?? ''),
-            'ratio' => self::parseRatio($ratio),
+            'ratio' => self::parseRatio(self::ratio($props)),
             'duration' => !empty($meta['duration']) ? self::formatDuration($meta['duration']) : '',
+            'seconds' => (int) ($meta['duration'] ?? 0),
             'meta' => $meta,
+            'ui' => self::playerOptions($props),
         ];
-
-        if (app(Config::class)('app.isCustomizer')) {
-            $node->attrs['data-preview'] = 'reload';
-        }
 
         self::loadAssets();
 
         return true;
+    }
+
+    private static function ratio(array $props): string
+    {
+        return ($props['ratio'] ?? '16:9') === 'custom' ? (string) ($props['ratio_custom'] ?? '') : (string) ($props['ratio'] ?? '16:9');
+    }
+
+    /**
+     * Player options for ytrutube.js. With own controls the RuTube player is covered
+     * and only the enabled controls are available: no links to RuTube, menus or recommendations.
+     */
+    public static function playerOptions(array $props): array
+    {
+        $custom = ($props['controls'] ?? 'custom') !== 'rutube';
+        $flag = static fn(string $name) => $custom && !empty($props[$name]);
+
+        return [
+            'custom' => $custom,
+            'play' => $flag('ctrl_play'),
+            'progress' => $flag('ctrl_progress'),
+            'seek' => $flag('ctrl_progress') && $flag('ctrl_seek'),
+            'time' => $flag('ctrl_time'),
+            'volume' => $flag('ctrl_volume'),
+            'fullscreen' => $flag('ctrl_fullscreen'),
+            'click' => $flag('ctrl_click'),
+            'autohide' => $flag('ctrl_autohide'),
+            'endPoster' => !empty($props['end_poster']),
+            'labels' => [
+                'play' => Text::_('PLG_SYSTEM_YTRUTUBE_PLAY'),
+                'pause' => Text::_('PLG_SYSTEM_YTRUTUBE_PAUSE'),
+                'mute' => Text::_('PLG_SYSTEM_YTRUTUBE_MUTE'),
+                'unmute' => Text::_('PLG_SYSTEM_YTRUTUBE_UNMUTE'),
+                'fullscreen' => Text::_('PLG_SYSTEM_YTRUTUBE_FULLSCREEN'),
+                'exitFullscreen' => Text::_('PLG_SYSTEM_YTRUTUBE_EXIT_FULLSCREEN'),
+            ],
+        ];
     }
 
     public static function loadAssets(): void

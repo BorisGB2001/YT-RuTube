@@ -7,20 +7,34 @@
 
     var ORIGIN = /^https:\/\/([a-z0-9-]+\.)?rutube\.ru$/i;
     var ALLOW = 'clipboard-write; autoplay; fullscreen; picture-in-picture; encrypted-media';
-    var players = []; // { iframe, root, params, ready }
+    var SEEK_STEP = 10;
+    var HIDE_DELAY = 2500;
+    var players = [];
     var preconnected = false;
 
-    function send(iframe, type, data) {
+    var ICONS = {
+        play: '<path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11.04-6.86a1 1 0 0 0 0-1.72L9.5 4.28A1 1 0 0 0 8 5.14z"/>',
+        pause: '<path d="M6.5 5h3.75v14H6.5zM13.75 5h3.75v14h-3.75z"/>',
+        volume: '<path d="M3 9v6h4l5 4V5L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/>',
+        muted: '<path d="M3 9v6h4l5 4V5L7 9H3zm18.3.7-1.4-1.4-2.4 2.4-2.4-2.4-1.4 1.4 2.4 2.4-2.4 2.4 1.4 1.4 2.4-2.4 2.4 2.4 1.4-1.4-2.4-2.4z"/>',
+        expand: '<path d="M4 4h6v2H6v4H4zm10 0h6v6h-2V6h-4zM4 14h2v4h4v2H4zm14 0h2v6h-6v-2h4z"/>',
+        compress: '<path d="M8 4h2v6H4V8h4zm6 0h2v4h4v2h-6zM4 14h6v6H8v-4H4zm10 0h6v2h-4v4h-2z"/>'
+    };
+
+    function icon(name) {
+        return '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">' + ICONS[name] + '</svg>';
+    }
+
+    function send(player, type, data) {
         try {
-            iframe.contentWindow.postMessage(JSON.stringify({ type: type, data: data || {} }), '*');
+            player.iframe.contentWindow.postMessage(JSON.stringify({ type: type, data: data || {} }), '*');
         } catch (e) {}
     }
 
     function getParams(src) {
         var params = {};
-        var query = src.split('?')[1] || '';
 
-        query.split('&').forEach(function (pair) {
+        (src.split('?')[1] || '').split('&').forEach(function (pair) {
             if (pair) {
                 var parts = pair.split('=');
                 params[decodeURIComponent(parts[0])] = decodeURIComponent(parts[1] || '');
@@ -34,6 +48,24 @@
         return src + (src.indexOf('?') === -1 ? '?' : '&') + name + '=' + encodeURIComponent(value);
     }
 
+    function getOptions(root) {
+        try {
+            return JSON.parse(root.getAttribute('data-ytrutube-ui') || '{}');
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function formatTime(seconds) {
+        seconds = Math.max(0, Math.floor(seconds || 0));
+
+        var h = Math.floor(seconds / 3600);
+        var m = Math.floor(seconds % 3600 / 60);
+        var s = seconds % 60;
+
+        return (h ? h + ':' + (m < 10 ? '0' : '') : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
     function findPlayer(source) {
         for (var i = 0; i < players.length; i++) {
             if (players[i].iframe.contentWindow === source) {
@@ -41,33 +73,77 @@
             }
         }
 
-        // Lightbox iframes are created by UIkit, register them on first message
-        var iframes = document.querySelectorAll('.uk-lightbox iframe');
-
-        for (var j = 0; j < iframes.length; j++) {
-            if (iframes[j].contentWindow === source && isOwnLightboxUrl(iframes[j].src)) {
-                return register(iframes[j], null);
-            }
-        }
-
         return null;
     }
 
-    function isOwnLightboxUrl(src) {
-        var links = document.querySelectorAll('.ytrutube--lightbox .ytrutube__poster');
+    /* Player lifecycle */
 
-        for (var i = 0; i < links.length; i++) {
-            if (links[i].href === src) {
-                return true;
-            }
+    function activate(root, autoplay, box) {
+        var inline = !box;
+        box = box || root.querySelector('.ytrutube__box');
+
+        var src = root.getAttribute('data-ytrutube-src');
+
+        if (!src || !box || (inline && root.classList.contains('ytrutube--active'))) {
+            return null;
         }
 
-        return false;
-    }
+        var options = getOptions(root);
+        var iframe = document.createElement('iframe');
 
-    function register(iframe, root) {
-        var player = { iframe: iframe, root: root, params: getParams(iframe.src), ready: false };
+        iframe.className = 'ytrutube__iframe';
+        iframe.src = autoplay ? addParam(src, 'autoplay', 1) : src;
+        iframe.title = root.getAttribute('data-ytrutube-title') || 'RuTube';
+        iframe.setAttribute('allow', ALLOW);
+        iframe.setAttribute('allowfullscreen', '');
+
+        var player = {
+            root: root,
+            box: box,
+            iframe: iframe,
+            inline: inline,
+            options: options,
+            params: getParams(iframe.src),
+            playing: !!autoplay,
+            muted: getParams(src).mute === '1',
+            time: 0,
+            duration: parseFloat(root.getAttribute('data-ytrutube-duration')) || 0
+        };
+
         players.push(player);
+
+        if (options.custom) {
+            // The RuTube player gets no clicks or focus: links, menus and
+            // recommendations inside it can't be used, only our controls.
+            iframe.setAttribute('tabindex', '-1');
+            buildControls(player);
+        }
+
+        iframe.addEventListener('load', function () {
+            box.classList.add('ytrutube__box--loaded');
+
+            if (inline) {
+                root.classList.add('ytrutube--loaded');
+            }
+
+            // Fallback in case "player:ready" was sent before we listened
+            setTimeout(function () {
+                setup(player);
+            }, 1500);
+        });
+
+        if (inline) {
+            root.classList.add('ytrutube--active');
+        }
+
+        box.insertBefore(iframe, box.firstChild);
+        update(player);
+
+        if (autoplay) {
+            pauseOthers(player);
+            (player.shield || iframe).focus({ preventScroll: true });
+        }
+
         return player;
     }
 
@@ -80,11 +156,11 @@
         player.ready = true;
 
         if (player.params.skinColor) {
-            send(player.iframe, 'player:setSkinColor', { params: { color: player.params.skinColor } });
+            send(player, 'player:setSkinColor', { params: { color: player.params.skinColor } });
         }
 
-        if (player.params.mute === '1') {
-            send(player.iframe, 'player:mute');
+        if (player.muted) {
+            send(player, 'player:mute');
         }
 
         // Older player versions don't send "player:playOptionsLoaded"
@@ -106,63 +182,383 @@
         var time = parseInt(player.params.bmstart || player.params.t, 10);
 
         if (time > 0) {
-            send(player.iframe, 'player:setCurrentTime', { time: time });
+            send(player, 'player:setCurrentTime', { time: time });
         }
 
         if (player.params.autoplay === '1') {
-            send(player.iframe, 'player:play');
+            send(player, 'player:play');
+        }
+    }
+
+    // Back to the poster, e.g. when the video ends (instead of RuTube recommendations)
+    function destroy(player) {
+        var index = players.indexOf(player);
+
+        if (index === -1) {
+            return;
+        }
+
+        players.splice(index, 1);
+        clearTimeout(player.hideTimer);
+
+        if (isFullscreen(player)) {
+            toggleFullscreen(player);
+        }
+
+        send(player, 'player:remove');
+
+        [player.iframe, player.shield, player.controls].forEach(function (el) {
+            if (el && el.parentNode) {
+                el.parentNode.removeChild(el);
+            }
+        });
+
+        player.box.classList.remove('ytrutube__box--loaded', 'ytrutube__box--playing', 'ytrutube__box--idle');
+
+        if (player.inline) {
+            player.root.classList.remove('ytrutube--active', 'ytrutube--loaded');
+
+            var poster = player.root.querySelector('.ytrutube__poster');
+
+            if (poster) {
+                poster.focus({ preventScroll: true });
+            }
+        } else if (player.modal && window.UIkit) {
+            window.UIkit.modal(player.modal).hide();
         }
     }
 
     function pauseOthers(current) {
         players.forEach(function (player) {
-            if (player !== current && player.root && player.root.hasAttribute('data-ytrutube-pause-others')) {
-                send(player.iframe, 'player:pause');
+            if (player !== current && player.root.hasAttribute('data-ytrutube-pause-others')) {
+                send(player, 'player:pause');
             }
         });
     }
 
-    function activate(root, autoplay) {
-        if (!root || root.classList.contains('ytrutube--active')) {
-            return;
+    /* Own controls */
+
+    function button(cls, label) {
+        var el = document.createElement('button');
+        el.type = 'button';
+        el.className = 'ytrutube__control ' + cls;
+        el.setAttribute('aria-label', label);
+        return el;
+    }
+
+    function buildControls(player) {
+        var o = player.options;
+        var box = player.box;
+        var labels = o.labels || {};
+
+        var shield = document.createElement('div');
+        shield.className = 'ytrutube__shield';
+        shield.tabIndex = 0;
+        shield.setAttribute('role', 'button');
+        shield.setAttribute('aria-label', player.root.getAttribute('data-ytrutube-title') || 'RuTube');
+
+        var bar = document.createElement('div');
+        bar.className = 'ytrutube__controls';
+
+        var els = {};
+
+        if (o.play) {
+            els.play = button('ytrutube__control--play', labels.play || 'Play');
+            bar.appendChild(els.play);
         }
 
-        var src = root.getAttribute('data-ytrutube-src');
-        var box = root.querySelector('.ytrutube__box');
-
-        if (!src || !box) {
-            return;
+        if (o.time) {
+            els.time = document.createElement('span');
+            els.time.className = 'ytrutube__time';
+            bar.appendChild(els.time);
         }
 
-        var iframe = document.createElement('iframe');
+        if (o.progress) {
+            els.progress = document.createElement('div');
+            els.progress.className = 'ytrutube__progress' + (o.seek ? ' ytrutube__progress--seek' : '');
+            els.progress.innerHTML = '<div class="ytrutube__progress-fill"></div>';
+            els.fill = els.progress.firstChild;
+            bar.appendChild(els.progress);
+        } else {
+            bar.appendChild(Object.assign(document.createElement('span'), { className: 'ytrutube__spacer' }));
+        }
 
-        iframe.className = 'ytrutube__iframe';
-        iframe.src = autoplay ? addParam(src, 'autoplay', 1) : src;
-        iframe.title = root.getAttribute('data-ytrutube-title') || 'RuTube';
-        iframe.setAttribute('allow', ALLOW);
-        iframe.setAttribute('allowfullscreen', '');
-        iframe.setAttribute('webkitallowfullscreen', '');
-        iframe.setAttribute('mozallowfullscreen', '');
+        if (o.volume) {
+            els.volume = button('ytrutube__control--volume', labels.mute || 'Mute');
+            bar.appendChild(els.volume);
+        }
 
-        var player = register(iframe, root);
+        if (o.fullscreen) {
+            els.fullscreen = button('ytrutube__control--fullscreen', labels.fullscreen || 'Fullscreen');
+            bar.appendChild(els.fullscreen);
+        }
 
-        iframe.addEventListener('load', function () {
-            root.classList.add('ytrutube--loaded');
+        player.shield = shield;
+        player.controls = bar;
+        player.els = els;
 
-            // Fallback in case "player:ready" was sent before we listened
-            setTimeout(function () {
-                setup(player);
-            }, 1500);
+        box.appendChild(shield);
+
+        if (bar.querySelector('.ytrutube__control, .ytrutube__time, .ytrutube__progress')) {
+            box.appendChild(bar);
+        }
+
+        shield.addEventListener('click', function () {
+            if (o.click) {
+                togglePlay(player);
+            }
+
+            wake(player);
         });
 
-        root.classList.add('ytrutube--active');
-        box.appendChild(iframe);
+        shield.addEventListener('dblclick', function () {
+            if (o.fullscreen) {
+                toggleFullscreen(player);
+            }
+        });
 
-        if (autoplay) {
+        shield.addEventListener('keydown', function (e) {
+            onKey(player, e);
+        });
+
+        bar.addEventListener('keydown', function (e) {
+            if (e.target === bar || e.key !== ' ') {
+                onKey(player, e);
+            }
+        });
+
+        els.play && els.play.addEventListener('click', function () {
+            togglePlay(player);
+        });
+
+        els.volume && els.volume.addEventListener('click', function () {
+            toggleMute(player);
+        });
+
+        els.fullscreen && els.fullscreen.addEventListener('click', function () {
+            toggleFullscreen(player);
+        });
+
+        if (els.progress && o.seek) {
+            bindSeek(player);
+        }
+
+        ['pointermove', 'pointerdown', 'focusin'].forEach(function (type) {
+            box.addEventListener(type, function () {
+                wake(player);
+            });
+        });
+
+        box.addEventListener('pointerleave', function () {
+            hideSoon(player, 600);
+        });
+    }
+
+    function bindSeek(player) {
+        var progress = player.els.progress;
+        var dragging = false;
+
+        function timeAt(e) {
+            var rect = progress.getBoundingClientRect();
+            return Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)) * player.duration;
+        }
+
+        progress.addEventListener('pointerdown', function (e) {
+            if (!player.duration) {
+                return;
+            }
+
+            dragging = true;
+            progress.setPointerCapture(e.pointerId);
+            player.time = timeAt(e);
+            update(player);
+        });
+
+        progress.addEventListener('pointermove', function (e) {
+            if (dragging) {
+                player.time = timeAt(e);
+                update(player);
+            }
+        });
+
+        progress.addEventListener('pointerup', function (e) {
+            if (dragging) {
+                dragging = false;
+                seek(player, timeAt(e));
+            }
+        });
+    }
+
+    function onKey(player, e) {
+        var o = player.options;
+        var key = e.key;
+
+        if ((key === ' ' || key === 'k') && (o.click || o.play)) {
+            togglePlay(player);
+        } else if ((key === 'f' || key === 'F') && o.fullscreen) {
+            toggleFullscreen(player);
+        } else if ((key === 'm' || key === 'M') && o.volume) {
+            toggleMute(player);
+        } else if ((key === 'ArrowRight' || key === 'ArrowLeft') && o.progress && o.seek && player.duration) {
+            seek(player, player.time + (key === 'ArrowRight' ? SEEK_STEP : -SEEK_STEP));
+        } else if (key === 'Escape' && player.pseudoFullscreen) {
+            toggleFullscreen(player);
+        } else {
+            return;
+        }
+
+        e.preventDefault();
+        wake(player);
+    }
+
+    function togglePlay(player) {
+        player.playing = !player.playing;
+        send(player, player.playing ? 'player:play' : 'player:pause');
+
+        if (player.playing) {
             pauseOthers(player);
-            iframe.focus();
+        }
+
+        update(player);
+    }
+
+    function toggleMute(player) {
+        player.muted = !player.muted;
+        send(player, player.muted ? 'player:mute' : 'player:unMute');
+        update(player);
+    }
+
+    function seek(player, time) {
+        player.time = Math.min(Math.max(0, time), player.duration || time);
+        send(player, 'player:setCurrentTime', { time: player.time });
+        update(player);
+    }
+
+    function isFullscreen(player) {
+        var el = document.fullscreenElement || document.webkitFullscreenElement;
+        return el === player.box || !!player.pseudoFullscreen;
+    }
+
+    // Fullscreen of our box (iframe + controls). iPhone has no element fullscreen,
+    // there the box covers the viewport instead.
+    function toggleFullscreen(player) {
+        var box = player.box;
+
+        if (isFullscreen(player)) {
+            if (player.pseudoFullscreen) {
+                player.pseudoFullscreen = false;
+                box.classList.remove('ytrutube__box--fullscreen');
+                document.documentElement.classList.remove('ytrutube-noscroll');
+            } else {
+                (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+            }
+        } else if (box.requestFullscreen || box.webkitRequestFullscreen) {
+            (box.requestFullscreen || box.webkitRequestFullscreen).call(box);
+        } else {
+            player.pseudoFullscreen = true;
+            box.classList.add('ytrutube__box--fullscreen');
+            document.documentElement.classList.add('ytrutube-noscroll');
+        }
+
+        setTimeout(function () {
+            update(player);
+        }, 100);
+    }
+
+    function wake(player) {
+        player.box.classList.remove('ytrutube__box--idle');
+        hideSoon(player, HIDE_DELAY);
+    }
+
+    function hideSoon(player, delay) {
+        clearTimeout(player.hideTimer);
+
+        if (player.options.autohide) {
+            player.hideTimer = setTimeout(function () {
+                if (player.playing && !player.controls.contains(document.activeElement)) {
+                    player.box.classList.add('ytrutube__box--idle');
+                }
+            }, delay);
         }
     }
+
+    function update(player) {
+        player.box.classList.toggle('ytrutube__box--playing', player.playing);
+
+        var els = player.els;
+        var labels = player.options.labels || {};
+
+        if (!els) {
+            return;
+        }
+
+        if (els.play) {
+            els.play.innerHTML = icon(player.playing ? 'pause' : 'play');
+            els.play.setAttribute('aria-label', player.playing ? labels.pause || 'Pause' : labels.play || 'Play');
+        }
+
+        if (els.volume) {
+            els.volume.innerHTML = icon(player.muted ? 'muted' : 'volume');
+            els.volume.setAttribute('aria-label', player.muted ? labels.unmute || 'Unmute' : labels.mute || 'Mute');
+        }
+
+        if (els.fullscreen) {
+            var fullscreen = isFullscreen(player);
+            els.fullscreen.innerHTML = icon(fullscreen ? 'compress' : 'expand');
+            els.fullscreen.setAttribute('aria-label', fullscreen ? labels.exitFullscreen || 'Exit fullscreen' : labels.fullscreen || 'Fullscreen');
+        }
+
+        if (els.time) {
+            els.time.textContent = formatTime(player.time) + (player.duration ? ' / ' + formatTime(player.duration) : '');
+        }
+
+        if (els.fill) {
+            els.fill.style.width = (player.duration ? Math.min(100, player.time / player.duration * 100) : 0) + '%';
+        }
+    }
+
+    /* Lightbox: own UIkit modal, so the same controls work there */
+
+    function openModal(root) {
+        var UIkit = window.UIkit;
+
+        if (!UIkit) {
+            activate(root, true);
+            return;
+        }
+
+        var parts = (getComputedStyle(root).getPropertyValue('--ytrutube-ratio') || '16 / 9').split('/');
+        var ratio = parseFloat(parts[0]) / parseFloat(parts[1]) || 16 / 9;
+
+        var modal = document.createElement('div');
+        modal.className = 'uk-modal ytrutube-modal';
+        modal.setAttribute('style', root.getAttribute('style') || '');
+        modal.innerHTML = '<div class="uk-modal-dialog uk-margin-auto-vertical">'
+            + '<button class="uk-modal-close-outside" type="button" uk-close></button>'
+            + '<div class="ytrutube__box"></div></div>';
+
+        var box = modal.querySelector('.ytrutube__box');
+        box.style.width = 'min(90vw, ' + (85 * ratio).toFixed(3) + 'vh)';
+
+        document.body.appendChild(modal);
+
+        var player = activate(root, true, box);
+
+        if (player) {
+            player.modal = modal;
+        }
+
+        modal.addEventListener('hidden', function (e) {
+            if (e.target === modal) {
+                player && destroy(player);
+                modal.parentNode && modal.parentNode.removeChild(modal);
+            }
+        });
+
+        UIkit.modal(modal).show();
+    }
+
+    /* Events */
 
     function preconnect() {
         if (preconnected) {
@@ -180,63 +576,42 @@
         });
     }
 
-    // UIkit sizes lightbox iframes with fixed CSS, fit them to the video ratio instead
-    function sizeLightbox() {
-        var iframes = document.querySelectorAll('.uk-lightbox iframe:not([data-ytrutube-sized])');
-
-        Array.prototype.forEach.call(iframes, function (iframe) {
-            var links = document.querySelectorAll('.ytrutube--lightbox .ytrutube__poster');
-
-            for (var i = 0; i < links.length; i++) {
-                if (links[i].href === iframe.src) {
-                    var parts = (links[i].getAttribute('data-ytrutube-ratio') || '16 / 9').split('/');
-                    var ratio = parseFloat(parts[0]) / parseFloat(parts[1]) || 16 / 9;
-
-                    iframe.setAttribute('data-ytrutube-sized', '');
-                    iframe.style.width = 'min(90vw, ' + (85 * ratio).toFixed(3) + 'vh)';
-                    iframe.style.height = 'auto';
-                    iframe.style.maxWidth = 'none';
-                    iframe.style.aspectRatio = parts.join('/');
-                    return;
-                }
-            }
-        });
-    }
-
-    function initViewport(scope) {
-        var elements = (scope || document).querySelectorAll('.ytrutube--viewport:not(.ytrutube--active)');
-
-        if (!elements.length) {
-            return;
-        }
-
-        if (!('IntersectionObserver' in window)) {
-            Array.prototype.forEach.call(elements, function (el) {
-                activate(el, false);
-            });
-            return;
-        }
-
-        var observer = new IntersectionObserver(function (entries) {
-            entries.forEach(function (entry) {
-                if (entry.isIntersecting) {
-                    observer.unobserve(entry.target);
-                    activate(entry.target, false);
-                }
-            });
-        }, { rootMargin: '200px 0px' });
+    function initViewport() {
+        var elements = document.querySelectorAll('.ytrutube--viewport:not(.ytrutube--active):not([data-ytrutube-observed])');
 
         Array.prototype.forEach.call(elements, function (el) {
+            el.setAttribute('data-ytrutube-observed', '');
+
+            if (!('IntersectionObserver' in window)) {
+                activate(el, false);
+                return;
+            }
+
+            var observer = new IntersectionObserver(function (entries) {
+                if (entries[0].isIntersecting) {
+                    observer.disconnect();
+                    activate(el, false);
+                }
+            }, { rootMargin: '200px 0px' });
+
             observer.observe(el);
         });
     }
 
     document.addEventListener('click', function (e) {
         var poster = e.target.closest && e.target.closest('button.ytrutube__poster');
+        var root = poster && poster.closest('.ytrutube');
 
-        if (poster) {
-            e.preventDefault();
-            activate(poster.closest('.ytrutube'), true);
+        if (!root || !root.hasAttribute('data-ytrutube-src')) {
+            return;
+        }
+
+        e.preventDefault();
+
+        if (root.classList.contains('ytrutube--lightbox')) {
+            openModal(root);
+        } else {
+            activate(root, true);
         }
     });
 
@@ -252,6 +627,12 @@
         }
     });
 
+    ['fullscreenchange', 'webkitfullscreenchange'].forEach(function (type) {
+        document.addEventListener(type, function () {
+            players.forEach(update);
+        });
+    });
+
     window.addEventListener('message', function (e) {
         if (!ORIGIN.test(e.origin)) {
             return;
@@ -265,30 +646,59 @@
             return;
         }
 
-        if (!message || !message.type) {
-            return;
-        }
-
-        var player = findPlayer(e.source);
+        var player = message && message.type && findPlayer(e.source);
 
         if (!player) {
             return;
         }
 
-        if (message.type === 'player:ready') {
-            setup(player);
-        } else if (message.type === 'player:playOptionsLoaded') {
-            setup(player);
-            start(player);
-        } else if (message.type === 'player:changeState' && message.data && message.data.state === 'playing') {
-            pauseOthers(player);
+        var data = message.data || {};
+
+        switch (message.type) {
+            case 'player:ready':
+                setup(player);
+                break;
+
+            case 'player:playOptionsLoaded':
+                setup(player);
+                start(player);
+                break;
+
+            case 'player:changeState':
+                if (data.state === 'playing') {
+                    player.playing = true;
+                    pauseOthers(player);
+                    hideSoon(player, HIDE_DELAY);
+                } else if (data.state === 'paused' || data.state === 'stopped') {
+                    player.playing = false;
+                    player.box.classList.remove('ytrutube__box--idle');
+                }
+                update(player);
+                break;
+
+            case 'player:currentTime':
+                player.time = parseFloat(data.time) || 0;
+                update(player);
+                break;
+
+            case 'player:durationChange':
+                player.duration = parseFloat(data.duration) || player.duration;
+                update(player);
+                break;
+
+            case 'player:playComplete':
+                if (player.options.endPoster) {
+                    destroy(player);
+                } else {
+                    player.playing = false;
+                    update(player);
+                }
+                break;
         }
     });
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function () {
-            initViewport();
-        });
+        document.addEventListener('DOMContentLoaded', initViewport);
     } else {
         initViewport();
     }
@@ -298,7 +708,6 @@
         new MutationObserver(function (mutations) {
             for (var i = 0; i < mutations.length; i++) {
                 if (mutations[i].addedNodes.length) {
-                    sizeLightbox();
                     initViewport();
                     return;
                 }

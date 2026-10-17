@@ -25,12 +25,17 @@
     "border_radius": "small",
     "schema": true,
     "margin_top": "default",
-    "margin_bottom": "default"
-  },
-  "placeholder": {
-    "props": {
-      "video": "https://rutube.ru/video/2a55da78983c76a6fcfbfb324313fc4b/"
-    }
+    "margin_bottom": "default",
+    "controls": "custom",
+    "ctrl_play": true,
+    "ctrl_progress": true,
+    "ctrl_seek": true,
+    "ctrl_time": true,
+    "ctrl_volume": true,
+    "ctrl_fullscreen": true,
+    "ctrl_click": true,
+    "ctrl_autohide": true,
+    "end_poster": true
   },
   "templates": {
     "render": "./templates/template.php",
@@ -39,7 +44,7 @@
   "fields": {
     "video": {
       "label": "RuTube Video",
-      "description": "Video link (rutube.ru/video/…, /shorts/…, /video/private/…?p=…), iframe embed code or video ID. A <code>?t=90</code> parameter in the link sets the start time.",
+      "description": "Video link, e.g. <code>https://rutube.ru/video/ae0b2c88b66f85fb0b7249f2cd9b97ef/</code>, Shorts, private video (<code>?p=</code>), embed link, iframe code or video ID. A <code>?t=90</code> parameter sets the start time. Until a link is set, the builder shows a placeholder and the site shows nothing.",
       "source": true
     },
     "title": {
@@ -110,6 +115,63 @@
       "description": "Get the title, poster and duration from the RuTube API. The result is cached.",
       "type": "checkbox",
       "text": "Load title and duration"
+    },
+    "controls": {
+      "label": "Player Controls",
+      "description": "With own controls the RuTube player is covered and can't be clicked: no links to RuTube, sharing, settings menu or recommendations. The video plays only in this window and in fullscreen. With the RuTube player, viewers use its full interface.",
+      "type": "select",
+      "options": {
+        "Own controls (video stays on the site)": "custom",
+        "RuTube player": "rutube"
+      }
+    },
+    "ctrl_play": {
+      "label": "Controls",
+      "type": "checkbox",
+      "text": "Play/pause button",
+      "show": "controls != 'rutube'"
+    },
+    "ctrl_progress": {
+      "type": "checkbox",
+      "text": "Progress bar",
+      "show": "controls != 'rutube'"
+    },
+    "ctrl_seek": {
+      "type": "checkbox",
+      "text": "Allow seeking",
+      "show": "controls != 'rutube'",
+      "enable": "ctrl_progress"
+    },
+    "ctrl_time": {
+      "type": "checkbox",
+      "text": "Time",
+      "show": "controls != 'rutube'"
+    },
+    "ctrl_volume": {
+      "type": "checkbox",
+      "text": "Sound button",
+      "show": "controls != 'rutube'"
+    },
+    "ctrl_fullscreen": {
+      "type": "checkbox",
+      "text": "Fullscreen button",
+      "show": "controls != 'rutube'"
+    },
+    "ctrl_click": {
+      "type": "checkbox",
+      "text": "Pause on click on the video",
+      "show": "controls != 'rutube'"
+    },
+    "ctrl_autohide": {
+      "type": "checkbox",
+      "text": "Hide controls while playing",
+      "show": "controls != 'rutube'"
+    },
+    "end_poster": {
+      "label": "Video End",
+      "description": "Show the poster again when the video ends instead of the RuTube end screen with recommendations.",
+      "type": "checkbox",
+      "text": "Show the poster when the video ends"
     },
     "show_title": {
       "label": "Display",
@@ -234,7 +296,12 @@
       "mode": "css",
       "attrs": {
         "debounce": 500,
-        "hints": [".el-element", ".el-image", ".el-title", ".el-play"]
+        "hints": [
+          ".el-element",
+          ".el-image",
+          ".el-title",
+          ".el-play"
+        ]
       }
     },
     "transform": "${builder.transform}"
@@ -245,7 +312,12 @@
       "fields": [
         {
           "title": "Content",
-          "fields": ["video", "title", "image", "image_alt"]
+          "fields": [
+            "video",
+            "title",
+            "image",
+            "image_alt"
+          ]
         },
         {
           "title": "Settings",
@@ -254,19 +326,58 @@
               "label": "Video",
               "type": "group",
               "divider": true,
-              "fields": ["load_mode", "ratio", "ratio_custom", "start", "mute", "skin_color", "pause_others", "fetch_meta"]
+              "fields": [
+                "load_mode",
+                "ratio",
+                "ratio_custom",
+                "start",
+                "mute",
+                "skin_color",
+                "pause_others",
+                "fetch_meta"
+              ]
+            },
+            {
+              "label": "Controls",
+              "type": "group",
+              "divider": true,
+              "fields": [
+                "controls",
+                "ctrl_play",
+                "ctrl_progress",
+                "ctrl_seek",
+                "ctrl_time",
+                "ctrl_volume",
+                "ctrl_fullscreen",
+                "ctrl_click",
+                "ctrl_autohide",
+                "end_poster"
+              ]
             },
             {
               "label": "Poster",
               "type": "group",
               "divider": true,
-              "fields": ["show_title", "show_duration", "title_position", "overlay", "image_hover", "border_radius", "box_shadow"]
+              "fields": [
+                "show_title",
+                "show_duration",
+                "title_position",
+                "overlay",
+                "image_hover",
+                "border_radius",
+                "box_shadow"
+              ]
             },
             {
               "label": "Play Button",
               "type": "group",
               "divider": true,
-              "fields": ["play_style", "play_size", "play_color", "play_icon_color"]
+              "fields": [
+                "play_style",
+                "play_size",
+                "play_color",
+                "play_icon_color"
+              ]
             },
             {
               "label": "General",
