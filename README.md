@@ -34,7 +34,7 @@ A regular RuTube embed loads the whole player, its scripts, ads and counters wit
 - Poster overlay (light, dark, gradient), zoom on hover, title (top or bottom), duration badge, border radius, box shadow.
 - **Player controls:** the standard RuTube player (default) or **own controls**. With own controls the RuTube player is covered, so viewers can't open RuTube, share, use its settings menu or recommendations — the video plays only in its window and in fullscreen. Until the video starts (and while ads play) clicks go to the RuTube player, because browsers may require a click inside it to start playback. Every control can be turned off: play/pause, progress bar, seeking, time, sound, fullscreen, pause on click, auto-hide.
 - With own controls, after the video ends the poster is shown again instead of the RuTube end screen with recommendations.
-- Until a video link is set, the builder shows a placeholder with a play button; the site shows nothing.
+- A new element starts with an example VK video (`https://vkvideo.ru/video-89823557_456239091`). Without a link, the builder shows a placeholder with a play button; the site shows nothing.
 - Player options: start time, start muted, player color, pause other RuTube videos on the page. They are applied through the official [RuTube player postMessage API](https://github.com/rutube/RutubePlayerJSAPI).
 - SEO: `VideoObject` structured data (JSON-LD) with title, description, poster, duration and publication date.
 - Accessible: the poster is a `<button>` with an `aria-label`, keyboard focus, `<noscript>` fallback.

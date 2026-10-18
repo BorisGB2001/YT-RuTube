@@ -2,6 +2,14 @@
 
 All notable changes to YT RuTube. Versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.3.1] — 2026-10-18
+
+### Changed
+- A new element starts with an example VK video: `https://vkvideo.ru/video-89823557_456239091`. Without a link the builder still shows the placeholder.
+
+### Fixed
+- VK Video data is read from the video object itself: the poster could be taken from the community avatar on the embed page.
+
 ## [1.3.0] — 2026-10-18
 
 ### Added

@@ -33,6 +33,7 @@ $cases = [
     ['parse', 'https://vk.com/video_ext.php?oid=-220018529&id=456249432&hash=88288bdb6c5ab44e', $vk('88288bdb6c5ab44e')],
     ['parse', '<iframe src="https://vkvideo.ru/video_ext.php?oid=-220018529&id=456249432&hd=2" width="853" height="480"></iframe>', $vk()],
     ['parse', 'video-220018529_456249432', $vk()],
+    ['parse', 'https://vkvideo.ru/video-89823557_456239091', ['provider' => 'vk', 'id' => '-89823557_456239091', 'key' => '', 'start' => 0]],
     ['parse', 'https://vk.com/id123', null],
     ['parse', 'https://notvk.com/video-1_2', null],
 

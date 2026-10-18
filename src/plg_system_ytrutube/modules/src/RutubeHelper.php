@@ -22,7 +22,7 @@ use function YOOtheme\app;
 
 class RutubeHelper
 {
-    public const VERSION = '1.3.0';
+    public const VERSION = '1.3.1';
 
     /** Retry interval in seconds after a failed API request. */
     private const RETRY_AFTER = 3600;
@@ -280,40 +280,72 @@ class RutubeHelper
             $html = mb_convert_encoding($html, 'UTF-8', 'Windows-1251');
         }
 
-        $string = static fn(string $name) => preg_match('~"' . $name . '":("(?:[^"\\\\]|\\\\.)*")~', $html, $m)
-            ? html_entity_decode((string) json_decode($m[1]), ENT_QUOTES, 'UTF-8')
-            : '';
-
-        $title = preg_match('~"title":("(?:[^"\\\\]|\\\\.)*"),"player":~', $html, $m)
-            ? html_entity_decode((string) json_decode($m[1]), ENT_QUOTES, 'UTF-8')
-            : '';
+        $video = self::vkVideo($html, $oid, $vid);
+        $title = html_entity_decode((string) ($video['title'] ?? ''), ENT_QUOTES, 'UTF-8');
 
         if ($title === '') {
             return ['error' => true, 'time' => time()];
         }
 
         // The largest poster image
-        $thumbnail = '';
-
-        if (preg_match('~"image":(\[[^\]]*\])~', $html, $m) && is_array($images = json_decode($m[1], true))) {
-            usort($images, static fn($a, $b) => ($b['width'] ?? 0) <=> ($a['width'] ?? 0));
-            $thumbnail = (string) ($images[0]['url'] ?? '');
-        }
+        $images = is_array($video['image'] ?? null) ? $video['image'] : [];
+        usort($images, static fn($a, $b) => ($b['width'] ?? 0) <=> ($a['width'] ?? 0));
 
         // Embedding needs the hash for some videos
-        if ($key === '' && preg_match('~video_ext\.php\?oid=' . preg_quote($oid, '~') . '&id=' . $vid . '&hash=([0-9a-f]+)~', str_replace('\\/', '/', $html), $m)) {
+        if ($key === '' && preg_match('~[?&]hash=([0-9a-f]+)~', (string) ($video['player'] ?? ''), $m)) {
             $key = $m[1];
         }
 
         return [
             'title' => $title,
-            'description' => $string('description'),
-            'thumbnail' => $thumbnail,
-            'duration' => preg_match('~"duration":(\d+)~', $html, $m) ? (int) $m[1] : 0,
-            'created' => preg_match('~"date":(\d{9,})~', $html, $m) ? gmdate('c', (int) $m[1]) : '',
+            'description' => html_entity_decode((string) ($video['description'] ?? ''), ENT_QUOTES, 'UTF-8'),
+            'thumbnail' => (string) ($images[0]['url'] ?? ''),
+            'duration' => (int) ($video['duration'] ?? 0),
+            'created' => !empty($video['date']) ? gmdate('c', (int) $video['date']) : '',
             'key' => $key,
             'time' => time(),
         ];
+    }
+
+    /**
+     * The video object of the "video.get" response embedded in the page.
+     * Other objects there (the owner, ads) have titles and images too.
+     */
+    private static function vkVideo(string $html, string $oid, string $vid): array
+    {
+        $pos = strpos($html, '"id":' . $vid . ',"owner_id":' . $oid . ',');
+        $start = $pos === false ? false : strrpos(substr($html, 0, $pos), '"items":[{');
+
+        if ($start === false) {
+            return [];
+        }
+
+        // Cut out the object by matching braces outside strings
+        $start += strlen('"items":[');
+        $depth = 0;
+        $string = false;
+
+        for ($i = $start, $length = strlen($html); $i < $length; $i++) {
+            $char = $html[$i];
+
+            if ($string) {
+                if ($char === '\\') {
+                    $i++;
+                } elseif ($char === '"') {
+                    $string = false;
+                }
+            } elseif ($char === '"') {
+                $string = true;
+            } elseif ($char === '{') {
+                $depth++;
+            } elseif ($char === '}' && --$depth === 0) {
+                $video = json_decode(substr($html, $start, $i - $start + 1), true);
+
+                return is_array($video) ? $video : [];
+            }
+        }
+
+        return [];
     }
 
     /**
