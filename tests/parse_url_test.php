@@ -34,6 +34,8 @@ $cases = [
     ['parse', '<iframe src="https://vkvideo.ru/video_ext.php?oid=-220018529&id=456249432&hd=2" width="853" height="480"></iframe>', $vk()],
     ['parse', 'video-220018529_456249432', $vk()],
     ['parse', 'https://vkvideo.ru/video-89823557_456239091', ['provider' => 'vk', 'id' => '-89823557_456239091', 'key' => '', 'start' => 0]],
+    ['parse', 'https://runtime.video.cloud.yandex.net/player/video/vplvwagyjhngyet6wydx?autoplay=0&mute=0', ['provider' => 'yandex', 'id' => 'video/vplvwagyjhngyet6wydx', 'key' => '', 'start' => 0]],
+    ['parse', '<iframe src="https://runtime.video.cloud.yandex.net/player/video/vplvwagyjhngyet6wydx?t=30" allowfullscreen></iframe>', ['provider' => 'yandex', 'id' => 'video/vplvwagyjhngyet6wydx', 'key' => '', 'start' => 30]],
     ['parse', 'https://vk.com/id123', null],
     ['parse', 'https://notvk.com/video-1_2', null],
 

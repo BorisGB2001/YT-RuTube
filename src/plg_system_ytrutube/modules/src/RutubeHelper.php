@@ -22,7 +22,7 @@ use function YOOtheme\app;
 
 class RutubeHelper
 {
-    public const VERSION = '1.3.1';
+    public const VERSION = '1.4.0';
 
     /** Retry interval in seconds after a failed API request. */
     private const RETRY_AFTER = 3600;
@@ -35,12 +35,13 @@ class RutubeHelper
     }
 
     /**
-     * Parses a RuTube or VK Video link, embed code or bare video ID.
+     * Parses a RuTube, VK Video or Yandex Cloud Video link, embed code or bare video ID.
      *
      * RuTube: rutube.ru/video/{id}/, rutube.ru/video/private/{id}/?p=KEY,
      * rutube.ru/shorts/{id}/, rutube.ru/play/embed/{id}, {id}.
      * VK Video: vkvideo.ru/video-1_2, vk.com/video-1_2, vk.com/clip-1_2, vk.com/video?z=video-1_2,
      * video_ext.php?oid=-1&id=2&hash=KEY, video-1_2.
+     * Yandex Cloud Video: runtime.video.cloud.yandex.net/player/video/{id} (also episode/{id}).
      * Both: <iframe src="...">, ?t=90 for the start time.
      *
      * @return array{provider: string, id: string, key: string, start: int}|null
@@ -68,6 +69,10 @@ class RutubeHelper
         $query = [];
         parse_str((string) parse_url(str_contains($input, '//') ? $input : 'https://' . $input, PHP_URL_QUERY), $query);
         $start = isset($query['t']) && is_string($query['t']) ? self::parseTime($query['t']) : 0;
+
+        if (preg_match('~video\.cloud\.yandex\.net/player/(video|episode)/([a-z0-9]+)~i', $input, $m)) {
+            return ['provider' => 'yandex', 'id' => strtolower($m[1] . '/' . $m[2]), 'key' => '', 'start' => $start];
+        }
 
         if (preg_match('~rutube\.ru/(?:play/embed|video/private|video|shorts|embed)/([a-f0-9]{32}|\d+)~i', $input, $m)) {
             return [
@@ -134,6 +139,12 @@ class RutubeHelper
 
     public static function embedUrl(string $id, string $key = '', array $params = [], string $provider = 'rutube'): string
     {
+        if ($provider === 'yandex') {
+            $params = array_filter($params, static fn($value) => $value !== null && $value !== '' && $value !== 0);
+
+            return 'https://runtime.video.cloud.yandex.net/player/' . $id . ($params ? '?' . http_build_query($params) : '');
+        }
+
         if ($provider === 'vk') {
             [$oid, $vid] = explode('_', $id, 2);
             $params = ['oid' => $oid, 'id' => $vid, 'hash' => $key] + $params;
@@ -155,6 +166,10 @@ class RutubeHelper
     {
         if ($provider === 'vk') {
             return 'https://vkvideo.ru/video' . $id;
+        }
+
+        if ($provider === 'yandex') {
+            return self::embedUrl($id, '', [], 'yandex');
         }
 
         return $key !== ''
@@ -214,7 +229,11 @@ class RutubeHelper
             $cache = null;
         }
 
-        $data = $provider === 'vk' ? self::fetchVk($id, $key) : self::fetch($id, $key);
+        $data = match ($provider) {
+            'vk' => self::fetchVk($id, $key),
+            'yandex' => self::fetchYandex($id),
+            default => self::fetch($id, $key),
+        };
 
         try {
             $cache?->store(json_encode($data), $cacheId);
@@ -308,6 +327,42 @@ class RutubeHelper
     }
 
     /**
+     * Yandex Cloud Video: Open Graph tags of the player page.
+     */
+    private static function fetchYandex(string $id): array
+    {
+        try {
+            $response = HttpFactory::getHttp()->get(self::embedUrl($id, '', [], 'yandex'), [
+                'Accept' => 'text/html',
+                'User-Agent' => 'Mozilla/5.0 (compatible; YT-RuTube/' . self::VERSION . ')',
+            ], 5);
+
+            $html = $response->getStatusCode() === 200 ? (string) $response->getBody() : '';
+        } catch (\Throwable) {
+            $html = '';
+        }
+
+        $meta = static fn(string $name) => preg_match('~<meta\s+property="' . preg_quote($name, '~') . '"\s+content="([^"]*)"~i', $html, $m)
+            ? html_entity_decode($m[1], ENT_QUOTES, 'UTF-8')
+            : '';
+
+        $title = $meta('og:title');
+
+        if ($title === '') {
+            return ['error' => true, 'time' => time()];
+        }
+
+        return [
+            'title' => $title,
+            'description' => $meta('og:description'),
+            'thumbnail' => $meta('og:image'),
+            'duration' => (int) $meta('video:duration'),
+            'created' => '',
+            'time' => time(),
+        ];
+    }
+
+    /**
      * The video object of the "video.get" response embedded in the page.
      * Other objects there (the owner, ads) have titles and images too.
      */
@@ -374,6 +429,7 @@ class RutubeHelper
         }
 
         $vk = $video['provider'] === 'vk';
+        $yandex = $video['provider'] === 'yandex';
         $meta = !empty($props['fetch_meta']) ? self::meta($video['id'], $video['key'], $video['provider']) : [];
         $key = $video['key'] ?: (string) ($meta['key'] ?? '');
 
@@ -391,14 +447,20 @@ class RutubeHelper
                 $poster = Uri::root(true) . '/' . ltrim($poster, '/');
             }
         } else {
-            $poster = ($meta['thumbnail'] ?? '') ?: ($vk ? '' : self::thumbnailUrl($video['id']));
+            $poster = ($meta['thumbnail'] ?? '') ?: ($vk || $yandex ? '' : self::thumbnailUrl($video['id']));
         }
 
         // Player options are passed as URL params and applied by ytrutube.js via the
         // postMessage API of the player: https://github.com/rutube/RutubePlayerJSAPI,
-        // https://dev.vk.com/ru/widgets/video (VK.VideoPlayer, needs js_api=1)
+        // https://dev.vk.com/ru/widgets/video (VK.VideoPlayer, needs js_api=1), Yandex Cloud
+        // Video player in an iframe (play, pause, seek, mute and unmute methods)
         $skin = ltrim((string) ($props['skin_color'] ?? ''), '#');
-        $params = $vk ? [
+        $skin = preg_match('~^[0-9a-f]{6}$~i', $skin) ? $skin : null;
+        $params = $yandex ? [
+            't' => $start,
+            'mute' => !empty($props['mute']) ? 1 : null,
+            'primary_color' => $skin,
+        ] : ($vk ? [
             'hd' => 2,
             't' => $start ? $start . 's' : null,
             'js_api' => 1,
@@ -406,8 +468,8 @@ class RutubeHelper
             'bmstart' => $start,
             't' => $start,
             'mute' => !empty($props['mute']) ? 1 : null,
-            'skinColor' => preg_match('~^[0-9a-f]{6}$~i', $skin) ? $skin : null,
-        ];
+            'skinColor' => $skin,
+        ]);
 
         $props['ytrutube'] = [
             'stub' => false,

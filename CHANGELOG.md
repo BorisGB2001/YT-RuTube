@@ -2,6 +2,14 @@
 
 All notable changes to YT RuTube. Versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] — 2026-10-18
+
+### Added
+- **Yandex Cloud Video:** the element accepts player links `runtime.video.cloud.yandex.net/player/video/{id}` (and the iframe code). Title, poster and duration come from the player page and are cached. Own controls work through the player's iframe API (play, pause, seeking, sound); its own interface is hidden while the video plays. Start time, *Start muted* and *Player Color* are passed to the player.
+
+### Changed
+- Element title *RuTube / VK / Yandex Video*.
+
 ## [1.3.1] — 2026-10-18
 
 ### Changed

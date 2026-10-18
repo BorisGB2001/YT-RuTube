@@ -5,7 +5,7 @@
 (function () {
     'use strict';
 
-    var ORIGIN = /^https:\/\/([a-z0-9-]+\.)?(rutube\.ru|vk\.com|vk\.ru|vkvideo\.ru)$/i;
+    var ORIGIN = /^https:\/\/([a-z0-9-]+\.)?(rutube\.ru|vk\.com|vk\.ru|vkvideo\.ru|video\.cloud\.yandex\.net)$/i;
     var ALLOW = 'clipboard-write; autoplay; fullscreen; picture-in-picture; encrypted-media';
     var SEEK_STEP = 10;
     var HIDE_DELAY = 2500;
@@ -41,7 +41,8 @@
         return '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">' + ICONS[name] + '</svg>';
     }
 
-    // Commands use the RuTube names; VK Video gets them as VK.VideoPlayer methods
+    // Commands use the RuTube names; VK Video and Yandex Cloud Video get them as
+    // methods of their iframe API (the same form for both)
     var VK_METHODS = {
         'player:play': 'play',
         'player:pause': 'pause',
@@ -53,7 +54,10 @@
     function send(player, type, data) {
         var message = JSON.stringify({ type: type, data: data || {} });
 
-        if (player.provider === 'vk') {
+        if (player.provider === 'yandex' && /^player:(hide|show)Controls$/.test(type)) {
+            // Hides or shows the player's own interface
+            message = { method: 'configureSkin', skinConfig: { hiddenControls: type === 'player:hideControls' ? ['*'] : [] } };
+        } else if (player.provider !== 'rutube') {
             if (!VK_METHODS[type] && type !== 'init') {
                 return;
             }
@@ -72,7 +76,7 @@
         } catch (e) {}
     }
 
-    // VK Video events in the RuTube form, so one handler serves both players
+    // VK Video and Yandex Cloud Video events in the RuTube form, so one handler serves all players
     function fromVk(data) {
         var events = {
             inited: { type: 'player:playOptionsLoaded' },
@@ -82,8 +86,12 @@
             ended: { type: 'player:playComplete' },
             timeupdate: { type: 'player:currentTime', data: { time: data.time } },
             seeked: { type: 'player:currentTime', data: { time: data.time } },
+            rewound: { type: 'player:currentTime', data: { time: data.time } },
+            durationchange: { type: 'player:durationChange', data: { duration: data.duration } },
             adStarted: { type: 'player:rollState', data: { state: 'play' } },
+            adShown: { type: 'player:rollState', data: { state: 'play' } },
             adCompleted: { type: 'player:rollState', data: { state: 'complete' } },
+            adEnd: { type: 'player:rollState', data: { state: 'complete' } },
             volumechange: { type: 'player:volumeChange', data: { muted: data.muted } }
         };
 
@@ -200,7 +208,7 @@
 
         iframe.className = 'ytrutube__iframe';
         iframe.src = autoplay ? addParam(src, 'autoplay', 1) : src;
-        iframe.title = root.getAttribute('data-ytrutube-title') || (provider === 'vk' ? 'VK Video' : 'RuTube');
+        iframe.title = root.getAttribute('data-ytrutube-title') || { vk: 'VK Video', yandex: 'Yandex Cloud Video' }[provider] || 'RuTube';
         iframe.setAttribute('allow', ALLOW);
         iframe.setAttribute('allowfullscreen', '');
 
@@ -855,7 +863,7 @@
 
         var player = message && findPlayer(e.source);
 
-        if (player && player.provider === 'vk') {
+        if (player && player.provider !== 'rutube') {
             if (message.event === 'inited') {
                 player.vkInited = true;
             }

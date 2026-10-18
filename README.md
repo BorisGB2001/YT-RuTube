@@ -25,6 +25,7 @@ A regular RuTube embed loads the whole player, its scripts, ads and counters wit
 
 **RuTube element** (group *Multimedia* in the YOOtheme Pro element library)
 
+- **Yandex Cloud Video.** Player links like `https://runtime.video.cloud.yandex.net/player/video/vplvwagyjhngyet6wydx` work the same way: poster, title and duration from the player page, own controls through the player iframe API.
 - **RuTube and VK Video.** Paste a VK Video link (`vkvideo.ru/video-220018529_456249432`, `vk.com/video-…`, clips, `video_ext.php` embed links or iframe code) and the element shows it the same way: poster, title and duration from VK, lazy loading and own controls through the [VK player JS API](https://dev.vk.com/ru/widgets/video).
 - Accepts any RuTube link: `rutube.ru/video/…`, `/shorts/…`, private videos `/video/private/…?p=…`, `/play/embed/…`, a full `<iframe>` embed code or just the video ID. `?t=90` in the link sets the start time.
 - Title, poster and duration are fetched from the RuTube API on the server and cached. Your own poster and title can be set instead. All content fields support dynamic content.
@@ -46,7 +47,7 @@ A regular RuTube embed loads the whole player, its scripts, ads and counters wit
 - Joomla 5.0 or later
 - YOOtheme Pro 5
 - PHP 8.1 or later
-- Outgoing HTTPS from the server to `rutube.ru` and `vk.com` for titles, posters and durations (RuTube posters work without it)
+- Outgoing HTTPS from the server to `rutube.ru`, `vk.com` and `runtime.video.cloud.yandex.net` for titles, posters and durations (RuTube posters work without it)
 
 ## Installation
 

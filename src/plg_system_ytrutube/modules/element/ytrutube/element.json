@@ -1,7 +1,7 @@
 {
   "@import": "./element.php",
   "name": "ytrutube",
-  "title": "RuTube / VK Video",
+  "title": "RuTube / VK / Yandex Video",
   "group": "Multimedia",
   "icon": "${url:images/icon.svg}",
   "iconSmall": "${url:images/iconSmall.svg}",
@@ -45,17 +45,17 @@
   "fields": {
     "video": {
       "label": "Video",
-      "description": "RuTube or VK Video link, e.g. <code>https://rutube.ru/video/5c3731210a7b462285456a4fb90e9009/</code> or <code>https://vkvideo.ru/video-220018529_456249432</code>. RuTube Shorts and private videos (<code>?p=</code>), VK clips, embed links, iframe code and video IDs work too. A <code>?t=90</code> parameter sets the start time. A new element starts with an example VK video. Without a link, the builder shows a placeholder and the site shows nothing.",
+      "description": "RuTube, VK Video or Yandex Cloud Video link, e.g. <code>https://rutube.ru/video/5c3731210a7b462285456a4fb90e9009/</code>, <code>https://vkvideo.ru/video-220018529_456249432</code> or <code>https://runtime.video.cloud.yandex.net/player/video/vplvwagyjhngyet6wydx</code>. RuTube Shorts and private videos (<code>?p=</code>), VK clips, embed links, iframe code and video IDs work too. A <code>?t=90</code> parameter sets the start time. A new element starts with an example VK video. Without a link, the builder shows a placeholder and the site shows nothing.",
       "source": true
     },
     "title": {
       "label": "Title",
-      "description": "If empty, the video title from RuTube or VK Video is used.",
+      "description": "If empty, the title from the video service is used.",
       "source": true
     },
     "image": {
       "label": "Poster",
-      "description": "If empty, the video poster from RuTube or VK Video is used.",
+      "description": "If empty, the poster from the video service is used.",
       "type": "image",
       "source": true
     },
@@ -103,7 +103,7 @@
     },
     "skin_color": {
       "label": "Player Color",
-      "description": "Color of the RuTube player controls (RuTube only).",
+      "description": "Color of the player controls (RuTube and Yandex Cloud Video).",
       "type": "color"
     },
     "pause_others": {
@@ -113,13 +113,13 @@
     },
     "fetch_meta": {
       "label": "Video Data",
-      "description": "Get the title, poster and duration from RuTube or VK Video. The result is cached.",
+      "description": "Get the title, poster and duration from the video service. The result is cached.",
       "type": "checkbox",
       "text": "Load title and duration"
     },
     "controls": {
       "label": "Player Controls",
-      "description": "The player of RuTube or VK Video shows its standard controls. With own controls the player is covered and can't be clicked: no links to RuTube or VK, sharing, settings menu or recommendations, and every control can be turned off. If the player ignores commands (e.g. RuTube with an ad blocker), its standard controls are shown instead.",
+      "description": "The video player shows its standard controls. With own controls the player is covered and can't be clicked: no links to the video service, sharing, settings menu or recommendations, and every control can be turned off. If the player ignores commands (e.g. RuTube with an ad blocker), its standard controls are shown instead.",
       "type": "select",
       "options": {
         "Video player (standard controls)": "rutube",
