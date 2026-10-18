@@ -2,6 +2,11 @@
 
 All notable changes to YT RuTube. Versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.1.5] — 2026-10-18
+
+### Fixed
+- Pause with an ad blocker: the RuTube player resumes playback right after a pause when its ad module is blocked. If the video is still playing a second after the pause command, the player is unloaded and the poster is shown; Play loads it again and continues from the same position.
+
 ## [1.1.4] — 2026-10-18
 
 ### Fixed

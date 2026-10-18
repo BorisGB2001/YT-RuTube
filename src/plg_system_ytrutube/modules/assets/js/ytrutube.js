@@ -102,6 +102,13 @@
 
         var options = getOptions(root);
         var iframe = document.createElement('iframe');
+        var resume = parseInt(root.getAttribute('data-ytrutube-resume'), 10);
+
+        // Continue after a hard pause
+        if (resume > 0) {
+            root.removeAttribute('data-ytrutube-resume');
+            src = addParam(addParam(src.replace(/([?&])(bmstart|t)=\d+/g, '$1').replace(/[?&]+$/, '').replace(/&&+/g, '&').replace('?&', '?'), 'bmstart', resume), 't', resume);
+        }
 
         iframe.className = 'ytrutube__iframe';
         iframe.src = autoplay ? addParam(src, 'autoplay', 1) : src;
@@ -459,11 +466,11 @@
         clearTimeout(player.pauseTimer);
 
         if (!player.playing) {
-            // Repeat the pause if the video keeps going
+            // When RuTube's ad module is blocked, the player resumes right after a pause.
+            // If the video keeps going, unload the player and resume from this position later.
             player.pauseTimer = setTimeout(function () {
                 if (isAdvancing(player)) {
-                    log('still playing, pause again');
-                    send(player, 'player:pause');
+                    hardPause(player);
                 }
             }, PAUSE_RETRY);
         } else {
@@ -483,6 +490,12 @@
         }
 
         update(player);
+    }
+
+    function hardPause(player) {
+        log('pause ignored by the player, unloading it at', Math.floor(player.time));
+        player.root.setAttribute('data-ytrutube-resume', Math.floor(player.time));
+        destroy(player);
     }
 
     function toggleMute(player) {
@@ -786,6 +799,7 @@
                 break;
 
             case 'player:playComplete':
+                player.root.removeAttribute('data-ytrutube-resume');
                 if (player.options.endPoster) {
                     destroy(player);
                 } else {
