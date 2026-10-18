@@ -2,6 +2,11 @@
 
 All notable changes to YT RuTube. Versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.1.6] — 2026-10-18
+
+### Fixed
+- A normal pause could be taken as ignored: playback-time reports sent just before the pause still counted as playing, so the player was unloaded although it had paused. Only time reports arriving well after the pause command count now, and a `pause` state from the player resets them.
+
 ## [1.1.5] — 2026-10-18
 
 ### Fixed

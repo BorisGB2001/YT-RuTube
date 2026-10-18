@@ -10,7 +10,8 @@
     var SEEK_STEP = 10;
     var HIDE_DELAY = 2500;
     var START_TIMEOUT = 2000;
-    var PAUSE_RETRY = 1000;
+    var PAUSE_CHECK = 1500;
+    var PAUSE_GRACE = 700;
     var TICK_WINDOW = 1500;
     var DEBUG = /[?&]ytrutube_debug=1/.test(location.search);
     var players = [];
@@ -467,12 +468,15 @@
 
         if (!player.playing) {
             // When RuTube's ad module is blocked, the player resumes right after a pause.
-            // If the video keeps going, unload the player and resume from this position later.
+            // If the playback time still moves well after the pause command (ticks already
+            // on their way don't count), unload the player and resume from this position later.
+            var pausedAt = Date.now();
+
             player.pauseTimer = setTimeout(function () {
-                if (isAdvancing(player)) {
+                if (player.lastTick > pausedAt + PAUSE_GRACE) {
                     hardPause(player);
                 }
-            }, PAUSE_RETRY);
+            }, PAUSE_CHECK);
         } else {
             pauseOthers(player);
 
@@ -762,6 +766,7 @@
                     hideSoon(player, HIDE_DELAY);
                 } else if (/^(pause|paused|stopped|completed)$/.test(data.state)) {
                     player.playing = false;
+                    player.lastTick = 0;
                     player.box.classList.remove('ytrutube__box--idle');
                 }
 
