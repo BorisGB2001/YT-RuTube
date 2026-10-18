@@ -2,6 +2,12 @@
 
 All notable changes to YT RuTube. Versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.1.2] — 2026-10-18
+
+### Fixed
+- Video did not start with own controls: the cover over the RuTube player was enabled before playback began, so a click could not reach the player when the browser blocked autoplay. Until the video really plays (and while ads play), clicks now go to the RuTube player; after that the player is covered and its own controls are hidden.
+- Pause, end and ad states of the current RuTube player (`pause`, `completed`, `advert`) are recognized.
+
 ## [1.1.1] — 2026-10-17
 
 ### Changed

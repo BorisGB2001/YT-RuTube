@@ -270,6 +270,9 @@
     transition: opacity .3s ease, visibility .3s ease;
 }
 
+.ytrutube__box--waiting .ytrutube__shield { pointer-events: none; }
+
+.ytrutube__box--waiting .ytrutube__controls,
 .ytrutube__box--idle .ytrutube__controls {
     opacity: 0;
     visibility: hidden;

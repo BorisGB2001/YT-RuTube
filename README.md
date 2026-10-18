@@ -31,7 +31,7 @@ A regular RuTube embed loads the whole player, its scripts, ads and counters wit
 - Aspect ratio: 16:9, 4:3, 21:9, 1:1, 4:5, 9:16 (Shorts) or custom.
 - Play button: RuTube style, circle, outline, icon only or none; three sizes, custom colors.
 - Poster overlay (light, dark, gradient), zoom on hover, title (top or bottom), duration badge, border radius, box shadow.
-- **Own player controls** (default): the RuTube player is covered, so viewers can't open RuTube, share, use its settings menu or recommendations — the video plays only in its window and in fullscreen. Every control can be turned off: play/pause, progress bar, seeking, time, sound, fullscreen, pause on click, auto-hide. The full RuTube interface is available as an option.
+- **Own player controls** (default): the RuTube player is covered, so viewers can't open RuTube, share, use its settings menu or recommendations — the video plays only in its window and in fullscreen. Until the video starts (and while ads play) clicks go to the RuTube player, because browsers may require a click inside it to start playback. Every control can be turned off: play/pause, progress bar, seeking, time, sound, fullscreen, pause on click, auto-hide. The full RuTube interface is available as an option.
 - After the video ends the poster is shown again instead of the RuTube end screen with recommendations.
 - Until a video link is set, the builder shows a placeholder with a play button; the site shows nothing.
 - Player options: start time, start muted, player color, pause other RuTube videos on the page. They are applied through the official [RuTube player postMessage API](https://github.com/rutube/RutubePlayerJSAPI).

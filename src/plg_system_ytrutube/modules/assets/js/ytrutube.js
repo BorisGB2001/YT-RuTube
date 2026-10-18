@@ -104,7 +104,9 @@
             inline: inline,
             options: options,
             params: getParams(iframe.src),
-            playing: !!autoplay,
+            playing: false,
+            started: false,
+            advert: false,
             muted: getParams(src).mute === '1',
             time: 0,
             duration: parseFloat(root.getAttribute('data-ytrutube-duration')) || 0
@@ -113,9 +115,11 @@
         players.push(player);
 
         if (options.custom) {
-            // The RuTube player gets no clicks or focus: links, menus and
-            // recommendations inside it can't be used, only our controls.
-            iframe.setAttribute('tabindex', '-1');
+            // Once the video plays, the RuTube player gets no clicks: links, menus and
+            // recommendations inside it can't be used, only our controls. Until then
+            // clicks pass through, as browsers may require a click inside the player
+            // to start it, and ads may need one too.
+            box.classList.add('ytrutube__box--waiting');
             buildControls(player);
         }
 
@@ -141,7 +145,6 @@
 
         if (autoplay) {
             pauseOthers(player);
-            (player.shield || iframe).focus({ preventScroll: true });
         }
 
         return player;
@@ -173,11 +176,11 @@
     function start(player) {
         clearTimeout(player.startTimer);
 
-        if (player.started) {
+        if (player.optionsApplied) {
             return;
         }
 
-        player.started = true;
+        player.optionsApplied = true;
 
         var time = parseInt(player.params.bmstart || player.params.t, 10);
 
@@ -213,7 +216,7 @@
             }
         });
 
-        player.box.classList.remove('ytrutube__box--loaded', 'ytrutube__box--playing', 'ytrutube__box--idle');
+        player.box.classList.remove('ytrutube__box--loaded', 'ytrutube__box--playing', 'ytrutube__box--idle', 'ytrutube__box--waiting');
 
         if (player.inline) {
             player.root.classList.remove('ytrutube--active', 'ytrutube--loaded');
@@ -225,6 +228,24 @@
             }
         } else if (player.modal && window.UIkit) {
             window.UIkit.modal(player.modal).hide();
+        }
+    }
+
+    // The video really plays: cover the RuTube player and hide its own controls
+    function markStarted(player) {
+        if (player.started) {
+            return;
+        }
+
+        player.started = true;
+
+        if (player.options.custom) {
+            send(player, 'player:hideControls');
+            player.iframe.setAttribute('tabindex', '-1');
+
+            if (player.box.contains(document.activeElement) || document.activeElement === document.body) {
+                player.shield.focus({ preventScroll: true });
+            }
         }
     }
 
@@ -485,6 +506,10 @@
     function update(player) {
         player.box.classList.toggle('ytrutube__box--playing', player.playing);
 
+        if (player.options.custom) {
+            player.box.classList.toggle('ytrutube__box--waiting', !player.started || player.advert);
+        }
+
         var els = player.els;
         var labels = player.options.labels || {};
 
@@ -665,19 +690,37 @@
                 break;
 
             case 'player:changeState':
+                // States: loading, playing, pause, completed, advert (older players: paused, stopped)
+                player.advert = data.state === 'advert';
+
                 if (data.state === 'playing') {
                     player.playing = true;
+                    markStarted(player);
                     pauseOthers(player);
                     hideSoon(player, HIDE_DELAY);
-                } else if (data.state === 'paused' || data.state === 'stopped') {
+                } else if (/^(pause|paused|stopped|completed)$/.test(data.state)) {
                     player.playing = false;
                     player.box.classList.remove('ytrutube__box--idle');
+                } else if (player.advert) {
+                    player.playing = !!data.isPlaying;
+                    pauseOthers(player);
                 }
+
+                update(player);
+                break;
+
+            case 'player:rollState':
+                player.advert = data.state === 'play';
                 update(player);
                 break;
 
             case 'player:currentTime':
                 player.time = parseFloat(data.time) || 0;
+
+                if (player.time > 0 && !player.advert) {
+                    markStarted(player);
+                }
+
                 update(player);
                 break;
 
