@@ -9,8 +9,16 @@
     var ALLOW = 'clipboard-write; autoplay; fullscreen; picture-in-picture; encrypted-media';
     var SEEK_STEP = 10;
     var HIDE_DELAY = 2500;
+    var START_TIMEOUT = 2000;
+    var DEBUG = /[?&]ytrutube_debug=1/.test(location.search);
     var players = [];
     var preconnected = false;
+
+    function log() {
+        if (DEBUG && window.console) {
+            console.info.apply(console, ['[YT RuTube]'].concat([].slice.call(arguments)));
+        }
+    }
 
     var ICONS = {
         play: '<path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11.04-6.86a1 1 0 0 0 0-1.72L9.5 4.28A1 1 0 0 0 8 5.14z"/>',
@@ -26,6 +34,8 @@
     }
 
     function send(player, type, data) {
+        log('→', type, data || '');
+
         try {
             player.iframe.contentWindow.postMessage(JSON.stringify({ type: type, data: data || {} }), '*');
         } catch (e) {}
@@ -435,9 +445,22 @@
     function togglePlay(player) {
         player.playing = !player.playing;
         send(player, player.playing ? 'player:play' : 'player:pause');
+        clearTimeout(player.playTimer);
 
         if (player.playing) {
             pauseOthers(player);
+
+            // The browser may block a start that wasn't clicked inside the player:
+            // let the next click through to the RuTube player.
+            player.playTimer = setTimeout(function () {
+                if (!player.confirmed) {
+                    log('play not confirmed, clicks go to the RuTube player');
+                    player.playing = false;
+                    player.started = false;
+                    send(player, 'player:showControls');
+                    update(player);
+                }
+            }, START_TIMEOUT);
         }
 
         update(player);
@@ -679,6 +702,10 @@
 
         var data = message.data || {};
 
+        if (message.type !== 'player:currentTime') {
+            log('←', message.type, data);
+        }
+
         switch (message.type) {
             case 'player:ready':
                 setup(player);
@@ -693,7 +720,10 @@
                 // States: loading, playing, pause, completed, advert (older players: paused, stopped)
                 player.advert = data.state === 'advert';
 
+                player.confirmed = data.state === 'playing';
+
                 if (data.state === 'playing') {
+                    clearTimeout(player.playTimer);
                     player.playing = true;
                     markStarted(player);
                     pauseOthers(player);
@@ -715,12 +745,8 @@
                 break;
 
             case 'player:currentTime':
+                // Not a start signal: RuTube reports the saved resume position before playback
                 player.time = parseFloat(data.time) || 0;
-
-                if (player.time > 0 && !player.advert) {
-                    markStarted(player);
-                }
-
                 update(player);
                 break;
 

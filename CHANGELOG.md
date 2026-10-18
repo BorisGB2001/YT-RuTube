@@ -2,6 +2,15 @@
 
 All notable changes to YT RuTube. Versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.1.3] — 2026-10-18
+
+### Fixed
+- Video still did not start for viewers who had watched it before: RuTube reports the saved resume position before playback, which was taken as "playing", so the cover blocked the click again. The cover now turns on only when the player reports `playing`.
+- If a play command from own controls is not confirmed within 2 seconds, the cover is removed and the RuTube controls are shown again, so the next click starts the video in the player.
+
+### Added
+- Diagnostics: open a page with `?ytrutube_debug=1` to log player events and commands to the browser console.
+
 ## [1.1.2] — 2026-10-18
 
 ### Fixed
