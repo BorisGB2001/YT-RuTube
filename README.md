@@ -65,7 +65,7 @@ To refresh the data right away, clear the `plg_system_ytrutube` group in *System
 
 ## Troubleshooting
 
-- **Video does not start or pause with an ad blocker.** This concerns own controls; with the standard RuTube player (default) the player handles it itself. Ad blockers break the RuTube player's ad module (the console shows `ERR_BLOCKED_BY_CLIENT` and `Ya is not defined` from RuTube). YT RuTube works around it: pause unloads the player and Play continues from the same position; seeking and sound reload the player at the new position (a short reload is visible). If the video still misbehaves, check the page with the blocker turned off.
+- **Video does not start or pause with an ad blocker.** This concerns own controls; with the standard RuTube player (default) the player handles it itself. Ad blockers break the RuTube player's ad module (the console shows `ERR_BLOCKED_BY_CLIENT` and `Ya is not defined` from RuTube). YT RuTube works around it: own controls are replaced by the RuTube controls, which keep working (the top bar of the player with the title and links stays covered). If the video still misbehaves, check the page with the blocker turned off.
 - **Diagnostics.** Open the page with `?ytrutube_debug=1`, e.g. `https://example.com/page?ytrutube_debug=1`: player events and commands are logged to the browser console (F12 → Console), lines start with `[YT RuTube]`.
 
 ## Development

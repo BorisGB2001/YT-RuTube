@@ -280,6 +280,17 @@
 
 .ytrutube__box--idle .ytrutube__shield { cursor: none; }
 
+/* RuTube controls when its commands don't work (ad blocker): the top bar with the
+   title and links stays covered */
+.ytrutube__guard {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    z-index: 3;
+}
+
 .ytrutube__control {
     display: inline-flex;
     flex: none;

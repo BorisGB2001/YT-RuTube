@@ -22,7 +22,7 @@ use function YOOtheme\app;
 
 class RutubeHelper
 {
-    public const VERSION = '1.2.1';
+    public const VERSION = '1.2.2';
 
     /** Retry interval in seconds after a failed API request. */
     private const RETRY_AFTER = 3600;

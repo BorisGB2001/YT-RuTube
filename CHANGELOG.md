@@ -2,6 +2,11 @@
 
 All notable changes to YT RuTube. Versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.2.2] — 2026-10-18
+
+### Changed
+- Own controls with an ad blocker: instead of reloading the player (which then stopped and needed Play again), the player switches to the RuTube controls, which work with an ad blocker. The top bar of the player with the title and links stays covered. This happens when an ad blocker is detected or when the player is seen to ignore a pause or a seek.
+
 ## [1.2.1] — 2026-10-18
 
 ### Fixed
