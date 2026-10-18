@@ -22,7 +22,7 @@ use function YOOtheme\app;
 
 class RutubeHelper
 {
-    public const VERSION = '1.1.6';
+    public const VERSION = '1.2.0';
 
     /** Retry interval in seconds after a failed API request. */
     private const RETRY_AFTER = 3600;
@@ -303,7 +303,7 @@ class RutubeHelper
      */
     public static function playerOptions(array $props): array
     {
-        $custom = ($props['controls'] ?? 'custom') !== 'rutube';
+        $custom = ($props['controls'] ?? 'rutube') === 'custom';
         $flag = static fn(string $name) => $custom && !empty($props[$name]);
 
         return [

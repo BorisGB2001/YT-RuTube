@@ -2,6 +2,11 @@
 
 All notable changes to YT RuTube. Versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] — 2026-10-18
+
+### Changed
+- **Player Controls** now defaults to *RuTube player (standard controls)*, as in 1.0: the RuTube player is shown with its own interface and works with any ad blocker. *Own controls* stay available as an option. Elements already saved with own controls keep them; switch them in *Settings → Player Controls*.
+
 ## [1.1.6] — 2026-10-18
 
 ### Fixed

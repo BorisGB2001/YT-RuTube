@@ -26,7 +26,7 @@
     "schema": true,
     "margin_top": "default",
     "margin_bottom": "default",
-    "controls": "custom",
+    "controls": "rutube",
     "ctrl_play": true,
     "ctrl_progress": true,
     "ctrl_seek": true,
@@ -118,11 +118,11 @@
     },
     "controls": {
       "label": "Player Controls",
-      "description": "With own controls the RuTube player is covered and can't be clicked: no links to RuTube, sharing, settings menu or recommendations. The video plays only in this window and in fullscreen. With the RuTube player, viewers use its full interface.",
+      "description": "The RuTube player shows its standard controls and works with any browser and ad blocker. With own controls the RuTube player is covered and can't be clicked: no links to RuTube, sharing, settings menu or recommendations, and every control can be turned off. Some ad blockers break the RuTube player, then a pause unloads the video and Play continues from the same position.",
       "type": "select",
       "options": {
-        "Own controls (video stays on the site)": "custom",
-        "RuTube player": "rutube"
+        "RuTube player (standard controls)": "rutube",
+        "Own controls (video stays on the site)": "custom"
       }
     },
     "ctrl_play": {
