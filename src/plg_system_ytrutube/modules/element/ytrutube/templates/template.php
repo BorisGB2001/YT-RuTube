@@ -22,6 +22,7 @@ $el = $this->el('div', [
     'class' => [
         'ytrutube',
         "ytrutube--{$mode}",
+        "ytrutube--{$video['provider']}" => !$stub,
     ],
     'style' => implode(' ', array_filter([
         "--ytrutube-ratio: {$video['ratio']};",
@@ -29,6 +30,8 @@ $el = $this->el('div', [
         $props['play_icon_color'] ? "--ytrutube-play-color: {$props['play_icon_color']};" : '',
     ])),
     'data-ytrutube-src' => $stub ? false : $video['embed'],
+    'data-ytrutube-provider' => $stub ? false : $video['provider'],
+    'data-ytrutube-mute' => !$stub && $video['mute'],
     'data-ytrutube-title' => $title ?: false,
     'data-ytrutube-duration' => $stub ? false : ($video['seconds'] ?: false),
     'data-ytrutube-ui' => $stub ? false : json_encode($video['ui'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
@@ -86,7 +89,7 @@ $poster = $this->el('button', [
 
         <?php if (!$stub) : ?>
         <noscript>
-            <iframe class="ytrutube__iframe" src="<?= $e($video['embed']) ?>" title="<?= $e($title ?: 'RuTube') ?>" allow="clipboard-write; autoplay" allowfullscreen loading="lazy"></iframe>
+            <iframe class="ytrutube__iframe" src="<?= $e($video['embed']) ?>" title="<?= $e($title ?: ($video['provider'] === 'vk' ? 'VK Video' : 'RuTube')) ?>" allow="clipboard-write; autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe>
         </noscript>
         <?php endif ?>
 
@@ -104,7 +107,7 @@ $poster = $this->el('button', [
         // RuTube returns Moscow time without an offset.
         'uploadDate' => $created !== '' ? $created . (preg_match('~(Z|[+-]\d\d:?\d\d)$~', $created) ? '' : '+03:00') : null,
         'duration' => !empty($meta['duration']) ? RutubeHelper::isoDuration($meta['duration']) : null,
-        'embedUrl' => 'https://rutube.ru/play/embed/' . $video['id'],
+        'embedUrl' => $video['player'],
         'contentUrl' => $video['url'],
     ]);
 ?>

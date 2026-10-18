@@ -272,6 +272,12 @@
 
 .ytrutube__box--waiting .ytrutube__shield { pointer-events: none; }
 
+/* VK Video shows its own control bar while paused: cover it */
+.ytrutube--vk .ytrutube__controls,
+.ytrutube-modal--vk .ytrutube__controls {
+    background: linear-gradient(to top, #000 0, #000 56px, rgba(0, 0, 0, 0) 100%);
+}
+
 .ytrutube__box--waiting .ytrutube__controls,
 .ytrutube__box--idle .ytrutube__controls {
     opacity: 0;

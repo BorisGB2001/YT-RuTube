@@ -6,7 +6,8 @@ require __DIR__ . '/../src/plg_system_ytrutube/modules/src/RutubeHelper.php';
 use YtRutube\RutubeHelper;
 
 $id = '5c3731210a7b462285456a4fb90e9009';
-$video = static fn($key = '', $start = 0) => ['id' => $id, 'key' => $key, 'start' => $start];
+$video = static fn($key = '', $start = 0) => ['provider' => 'rutube', 'id' => $id, 'key' => $key, 'start' => $start];
+$vk = static fn($key = '', $start = 0) => ['provider' => 'vk', 'id' => '-220018529_456249432', 'key' => $key, 'start' => $start];
 
 $cases = [
     // RutubeHelper::parse()
@@ -17,13 +18,23 @@ $cases = [
     ['parse', "https://rutube.ru/shorts/{$id}/", $video()],
     ['parse', "https://rutube.ru/video/private/{$id}/?p=AbC-12_x", $video('AbC-12_x')],
     ['parse', "https://rutube.ru/play/embed/{$id}", $video()],
-    ['parse', "https://rutube.ru/play/embed/7163336", ['id' => '7163336', 'key' => '', 'start' => 0]],
+    ['parse', "https://rutube.ru/play/embed/7163336", ['provider' => 'rutube', 'id' => '7163336', 'key' => '', 'start' => 0]],
     ['parse', "<iframe width=\"720\" height=\"405\" src=\"https://rutube.ru/play/embed/{$id}\" style=\"border: none;\" allow=\"clipboard-write; autoplay\" allowFullScreen></iframe>", $video()],
     ['parse', strtoupper($id), $video()],
     ['parse', "  {$id}  ", $video()],
     ['parse', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', null],
     ['parse', 'https://rutube.ru/channel/123/', null],
     ['parse', '', null],
+    ['parse', 'https://vkvideo.ru/video-220018529_456249432', $vk()],
+    ['parse', 'https://vk.com/video-220018529_456249432?t=1m30s', $vk('', 90)],
+    ['parse', 'https://vk.com/video?z=video-220018529_456249432%2Fpl_cat_trend', $vk()],
+    ['parse', 'https://vk.com/clip-220018529_456249432', $vk()],
+    ['parse', 'https://m.vk.com/video-220018529_456249432', $vk()],
+    ['parse', 'https://vk.com/video_ext.php?oid=-220018529&id=456249432&hash=88288bdb6c5ab44e', $vk('88288bdb6c5ab44e')],
+    ['parse', '<iframe src="https://vkvideo.ru/video_ext.php?oid=-220018529&id=456249432&hd=2" width="853" height="480"></iframe>', $vk()],
+    ['parse', 'video-220018529_456249432', $vk()],
+    ['parse', 'https://vk.com/id123', null],
+    ['parse', 'https://notvk.com/video-1_2', null],
 
     // RutubeHelper::parseTime()
     ['parseTime', '90', 90],
@@ -57,7 +68,8 @@ foreach ($cases as [$method, $input, $expected]) {
 }
 
 $embed = RutubeHelper::embedUrl($id, 'KEY', ['bmstart' => 90, 't' => 90, 'mute' => null, 'autoplay' => 1]);
-$ok = $embed === "https://rutube.ru/play/embed/{$id}?p=KEY&bmstart=90&t=90&autoplay=1";
+$ok = $embed === "https://rutube.ru/play/embed/{$id}?p=KEY&bmstart=90&t=90&autoplay=1"
+    && RutubeHelper::embedUrl('-220018529_456249432', 'abc', ['hd' => 2, 't' => null, 'js_api' => 1], 'vk') === 'https://vkvideo.ru/video_ext.php?oid=-220018529&id=456249432&hash=abc&hd=2&js_api=1';
 $failed += $ok ? 0 : 1;
 printf("%s embedUrl => %s\n", $ok ? 'ok  ' : 'FAIL', $embed);
 

@@ -1,7 +1,7 @@
 {
   "@import": "./element.php",
   "name": "ytrutube",
-  "title": "RuTube",
+  "title": "RuTube / VK Video",
   "group": "Multimedia",
   "icon": "${url:images/icon.svg}",
   "iconSmall": "${url:images/iconSmall.svg}",
@@ -43,18 +43,18 @@
   },
   "fields": {
     "video": {
-      "label": "RuTube Video",
-      "description": "Video link, e.g. <code>https://rutube.ru/video/5c3731210a7b462285456a4fb90e9009/</code>, Shorts, private video (<code>?p=</code>), embed link, iframe code or video ID. A <code>?t=90</code> parameter sets the start time. Until a link is set, the builder shows a placeholder and the site shows nothing.",
+      "label": "Video",
+      "description": "RuTube or VK Video link, e.g. <code>https://rutube.ru/video/5c3731210a7b462285456a4fb90e9009/</code> or <code>https://vkvideo.ru/video-220018529_456249432</code>. RuTube Shorts and private videos (<code>?p=</code>), VK clips, embed links, iframe code and video IDs work too. A <code>?t=90</code> parameter sets the start time. Until a link is set, the builder shows a placeholder and the site shows nothing.",
       "source": true
     },
     "title": {
       "label": "Title",
-      "description": "If empty, the video title from RuTube is used.",
+      "description": "If empty, the video title from RuTube or VK Video is used.",
       "source": true
     },
     "image": {
       "label": "Poster",
-      "description": "If empty, the RuTube video poster is used.",
+      "description": "If empty, the video poster from RuTube or VK Video is used.",
       "type": "image",
       "source": true
     },
@@ -65,7 +65,7 @@
     },
     "load_mode": {
       "label": "Loading",
-      "description": "The RuTube player is not loaded until it is needed: the page loads faster and no third-party cookies are set.",
+      "description": "The player is not loaded until it is needed: the page loads faster and no third-party cookies are set.",
       "type": "select",
       "options": {
         "On click (in place)": "click",
@@ -102,26 +102,26 @@
     },
     "skin_color": {
       "label": "Player Color",
-      "description": "Color of the RuTube player controls.",
+      "description": "Color of the RuTube player controls (RuTube only).",
       "type": "color"
     },
     "pause_others": {
       "type": "checkbox",
-      "text": "Pause other RuTube videos on the page",
+      "text": "Pause other videos on the page",
       "show": "load_mode != 'lightbox'"
     },
     "fetch_meta": {
-      "label": "RuTube Data",
-      "description": "Get the title, poster and duration from the RuTube API. The result is cached.",
+      "label": "Video Data",
+      "description": "Get the title, poster and duration from RuTube or VK Video. The result is cached.",
       "type": "checkbox",
       "text": "Load title and duration"
     },
     "controls": {
       "label": "Player Controls",
-      "description": "The RuTube player shows its standard controls and works with any browser and ad blocker. With own controls the RuTube player is covered and can't be clicked: no links to RuTube, sharing, settings menu or recommendations, and every control can be turned off. Some ad blockers break the RuTube player, then a pause unloads the video and Play continues from the same position.",
+      "description": "The player of RuTube or VK Video shows its standard controls. With own controls the player is covered and can't be clicked: no links to RuTube or VK, sharing, settings menu or recommendations, and every control can be turned off. If the player ignores commands (e.g. RuTube with an ad blocker), its standard controls are shown instead.",
       "type": "select",
       "options": {
-        "RuTube player (standard controls)": "rutube",
+        "Video player (standard controls)": "rutube",
         "Own controls (video stays on the site)": "custom"
       }
     },
@@ -169,7 +169,7 @@
     },
     "end_poster": {
       "label": "Video End",
-      "description": "Show the poster again when the video ends instead of the RuTube end screen with recommendations.",
+      "description": "Show the poster again when the video ends instead of the end screen with recommendations.",
       "type": "checkbox",
       "text": "Show the poster when the video ends"
     },

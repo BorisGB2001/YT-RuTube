@@ -2,6 +2,14 @@
 
 All notable changes to YT RuTube. Versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] — 2026-10-18
+
+### Added
+- **VK Video:** the element accepts VK Video links (`vkvideo.ru/video-…`, `vk.com/video-…`, clips, `video_ext.php` embed links and iframe code). Title, poster, duration and date are read from the VK embed page and cached. Own controls work through the VK player JS API (play, pause, seeking, sound, end of video); the VK control bar is covered while paused.
+
+### Changed
+- Element title *RuTube / VK Video*; field labels and descriptions name both services.
+
 ## [1.2.2] — 2026-10-18
 
 ### Changed

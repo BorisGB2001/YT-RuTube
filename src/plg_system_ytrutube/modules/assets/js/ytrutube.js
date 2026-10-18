@@ -5,7 +5,7 @@
 (function () {
     'use strict';
 
-    var ORIGIN = /^https:\/\/([a-z0-9-]+\.)?rutube\.ru$/i;
+    var ORIGIN = /^https:\/\/([a-z0-9-]+\.)?(rutube\.ru|vk\.com|vk\.ru|vkvideo\.ru)$/i;
     var ALLOW = 'clipboard-write; autoplay; fullscreen; picture-in-picture; encrypted-media';
     var SEEK_STEP = 10;
     var HIDE_DELAY = 2500;
@@ -41,12 +41,53 @@
         return '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">' + ICONS[name] + '</svg>';
     }
 
+    // Commands use the RuTube names; VK Video gets them as VK.VideoPlayer methods
+    var VK_METHODS = {
+        'player:play': 'play',
+        'player:pause': 'pause',
+        'player:mute': 'mute',
+        'player:unMute': 'unmute',
+        'player:setCurrentTime': 'seek'
+    };
+
     function send(player, type, data) {
+        var message = JSON.stringify({ type: type, data: data || {} });
+
+        if (player.provider === 'vk') {
+            if (!VK_METHODS[type] && type !== 'init') {
+                return;
+            }
+
+            message = { method: VK_METHODS[type] || type };
+
+            if (data && data.time !== undefined) {
+                message.time = data.time;
+            }
+        }
+
         log('→', type, data || '');
 
         try {
-            player.iframe.contentWindow.postMessage(JSON.stringify({ type: type, data: data || {} }), '*');
+            player.iframe.contentWindow.postMessage(message, '*');
         } catch (e) {}
+    }
+
+    // VK Video events in the RuTube form, so one handler serves both players
+    function fromVk(data) {
+        var events = {
+            inited: { type: 'player:playOptionsLoaded' },
+            started: { type: 'player:changeState', data: { state: 'playing' } },
+            resumed: { type: 'player:changeState', data: { state: 'playing' } },
+            paused: { type: 'player:changeState', data: { state: 'pause' } },
+            ended: { type: 'player:playComplete' },
+            timeupdate: { type: 'player:currentTime', data: { time: data.time } },
+            seeked: { type: 'player:currentTime', data: { time: data.time } },
+            adStarted: { type: 'player:rollState', data: { state: 'play' } },
+            adCompleted: { type: 'player:rollState', data: { state: 'complete' } },
+            volumechange: { type: 'player:volumeChange', data: { muted: data.muted } }
+        };
+
+        return events[data.event] || null;
     }
 
     function getParams(src) {
@@ -75,7 +116,11 @@
         fetch(BAIT, { mode: 'no-cors', cache: 'no-store', credentials: 'omit' }).catch(function () {
             blocked = true;
             log('ad blocker detected');
-            players.forEach(fallback);
+            players.forEach(function (player) {
+                if (player.provider === 'rutube') {
+                    fallback(player);
+                }
+            });
         });
     }
 
@@ -151,9 +196,11 @@
 
         var options = getOptions(root);
         var iframe = document.createElement('iframe');
+        var provider = root.getAttribute('data-ytrutube-provider') || 'rutube';
+
         iframe.className = 'ytrutube__iframe';
         iframe.src = autoplay ? addParam(src, 'autoplay', 1) : src;
-        iframe.title = root.getAttribute('data-ytrutube-title') || 'RuTube';
+        iframe.title = root.getAttribute('data-ytrutube-title') || (provider === 'vk' ? 'VK Video' : 'RuTube');
         iframe.setAttribute('allow', ALLOW);
         iframe.setAttribute('allowfullscreen', '');
 
@@ -161,13 +208,14 @@
             root: root,
             box: box,
             iframe: iframe,
+            provider: provider,
             inline: inline,
             options: options,
             params: getParams(iframe.src),
             playing: false,
             started: false,
             advert: false,
-            muted: getParams(src).mute === '1',
+            muted: getParams(src).mute === '1' || root.hasAttribute('data-ytrutube-mute'),
             time: 0,
             duration: parseFloat(root.getAttribute('data-ytrutube-duration')) || 0
         };
@@ -183,7 +231,7 @@
             buildControls(player);
             detectBlocker();
 
-            if (blocked) {
+            if (blocked && provider === 'rutube') {
                 fallback(player);
             }
         }
@@ -214,6 +262,18 @@
 
             if (player.inline) {
                 player.root.classList.add('ytrutube--loaded');
+            }
+
+            // VK Video answers commands only after "init"; it may not listen yet right after load
+            if (player.provider === 'vk') {
+                var tries = 0;
+
+                (function init() {
+                    if (!player.vkInited && tries++ < 20 && players.indexOf(player) !== -1) {
+                        send(player, 'init');
+                        setTimeout(init, 500);
+                    }
+                })();
             }
 
             // Fallback in case "player:ready" was sent before we listened
@@ -678,7 +738,7 @@
         var ratio = parseFloat(parts[0]) / parseFloat(parts[1]) || 16 / 9;
 
         var modal = document.createElement('div');
-        modal.className = 'uk-modal ytrutube-modal';
+        modal.className = 'uk-modal ytrutube-modal ytrutube-modal--' + (root.getAttribute('data-ytrutube-provider') || 'rutube');
         modal.setAttribute('style', root.getAttribute('style') || '');
         modal.innerHTML = '<div class="uk-modal-dialog uk-margin-auto-vertical">'
             + '<button class="uk-modal-close-outside" type="button" uk-close></button>'
@@ -793,9 +853,21 @@
             return;
         }
 
-        var player = message && message.type && findPlayer(e.source);
+        var player = message && findPlayer(e.source);
 
-        if (!player) {
+        if (player && player.provider === 'vk') {
+            if (message.event === 'inited') {
+                player.vkInited = true;
+            }
+
+            if (message.duration > 0) {
+                player.duration = message.duration;
+            }
+
+            message = message.event ? fromVk(message) : null;
+        }
+
+        if (!player || !message || !message.type) {
             return;
         }
 
@@ -860,6 +932,13 @@
 
                 player.time = time;
                 update(player);
+                break;
+
+            case 'player:volumeChange':
+                if (typeof data.muted === 'boolean') {
+                    player.muted = data.muted;
+                    update(player);
+                }
                 break;
 
             case 'player:durationChange':

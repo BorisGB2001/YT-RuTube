@@ -22,7 +22,7 @@ use function YOOtheme\app;
 
 class RutubeHelper
 {
-    public const VERSION = '1.2.2';
+    public const VERSION = '1.3.0';
 
     /** Retry interval in seconds after a failed API request. */
     private const RETRY_AFTER = 3600;
@@ -35,12 +35,15 @@ class RutubeHelper
     }
 
     /**
-     * Parses a RuTube link, embed code or bare video ID.
+     * Parses a RuTube or VK Video link, embed code or bare video ID.
      *
-     * Supported: rutube.ru/video/{id}/, rutube.ru/video/private/{id}/?p=KEY,
-     * rutube.ru/shorts/{id}/, rutube.ru/play/embed/{id}, <iframe src="...">, {id}.
+     * RuTube: rutube.ru/video/{id}/, rutube.ru/video/private/{id}/?p=KEY,
+     * rutube.ru/shorts/{id}/, rutube.ru/play/embed/{id}, {id}.
+     * VK Video: vkvideo.ru/video-1_2, vk.com/video-1_2, vk.com/clip-1_2, vk.com/video?z=video-1_2,
+     * video_ext.php?oid=-1&id=2&hash=KEY, video-1_2.
+     * Both: <iframe src="...">, ?t=90 for the start time.
      *
-     * @return array{id: string, key: string, start: int}|null
+     * @return array{provider: string, id: string, key: string, start: int}|null
      */
     public static function parse(string $input): ?array
     {
@@ -55,21 +58,42 @@ class RutubeHelper
         }
 
         if (preg_match('~^([a-f0-9]{32}|\d+)$~i', $input)) {
-            return ['id' => strtolower($input), 'key' => '', 'start' => 0];
+            return ['provider' => 'rutube', 'id' => strtolower($input), 'key' => '', 'start' => 0];
         }
 
-        if (!preg_match('~rutube\.ru/(?:play/embed|video/private|video|shorts|embed)/([a-f0-9]{32}|\d+)~i', $input, $m)) {
-            return null;
+        if (preg_match('~^(?:video|clip)?(-?\d+_\d+)$~i', $input, $m)) {
+            return ['provider' => 'vk', 'id' => $m[1], 'key' => '', 'start' => 0];
         }
 
         $query = [];
         parse_str((string) parse_url(str_contains($input, '//') ? $input : 'https://' . $input, PHP_URL_QUERY), $query);
+        $start = isset($query['t']) && is_string($query['t']) ? self::parseTime($query['t']) : 0;
 
-        return [
-            'id' => strtolower($m[1]),
-            'key' => isset($query['p']) ? preg_replace('~[^\w-]~', '', (string) $query['p']) : '',
-            'start' => isset($query['t']) ? self::parseTime((string) $query['t']) : 0,
-        ];
+        if (preg_match('~rutube\.ru/(?:play/embed|video/private|video|shorts|embed)/([a-f0-9]{32}|\d+)~i', $input, $m)) {
+            return [
+                'provider' => 'rutube',
+                'id' => strtolower($m[1]),
+                'key' => isset($query['p']) && is_string($query['p']) ? preg_replace('~[^\w-]~', '', $query['p']) : '',
+                'start' => $start,
+            ];
+        }
+
+        if (!preg_match('~(?:^|[/.])(?:vk\.com|vk\.ru|vkvideo\.ru)(?:/|$)~i', $input)) {
+            return null;
+        }
+
+        $key = isset($query['hash']) && is_string($query['hash']) ? preg_replace('~[^\w]~', '', $query['hash']) : '';
+
+        if (preg_match('~video_e(?:xt|mbed)\.php~i', $input) && isset($query['oid'], $query['id'])
+            && preg_match('~^-?\d+$~', (string) $query['oid']) && preg_match('~^\d+$~', (string) $query['id'])) {
+            return ['provider' => 'vk', 'id' => $query['oid'] . '_' . $query['id'], 'key' => $key, 'start' => $start];
+        }
+
+        if (preg_match('~(?:video|clip)(-?\d+_\d+)~i', rawurldecode($input), $m)) {
+            return ['provider' => 'vk', 'id' => $m[1], 'key' => $key, 'start' => $start];
+        }
+
+        return null;
     }
 
     /**
@@ -108,8 +132,16 @@ class RutubeHelper
         return '16 / 9';
     }
 
-    public static function embedUrl(string $id, string $key = '', array $params = []): string
+    public static function embedUrl(string $id, string $key = '', array $params = [], string $provider = 'rutube'): string
     {
+        if ($provider === 'vk') {
+            [$oid, $vid] = explode('_', $id, 2);
+            $params = ['oid' => $oid, 'id' => $vid, 'hash' => $key] + $params;
+            $params = array_filter($params, static fn($value) => $value !== null && $value !== '' && $value !== 0);
+
+            return 'https://vkvideo.ru/video_ext.php?' . http_build_query($params);
+        }
+
         if ($key !== '') {
             $params = ['p' => $key] + $params;
         }
@@ -119,8 +151,12 @@ class RutubeHelper
         return 'https://rutube.ru/play/embed/' . $id . ($params ? '?' . http_build_query($params) : '');
     }
 
-    public static function videoUrl(string $id, string $key = ''): string
+    public static function videoUrl(string $id, string $key = '', string $provider = 'rutube'): string
     {
+        if ($provider === 'vk') {
+            return 'https://vkvideo.ru/video' . $id;
+        }
+
         return $key !== ''
             ? 'https://rutube.ru/video/private/' . $id . '/?p=' . rawurlencode($key)
             : 'https://rutube.ru/video/' . $id . '/';
@@ -149,14 +185,14 @@ class RutubeHelper
     }
 
     /**
-     * Video metadata from the RuTube API, cached.
+     * Video metadata from the RuTube API or the VK Video embed page, cached.
      *
-     * @return array{title?: string, description?: string, thumbnail?: string, duration?: int, created?: string}
+     * @return array{title?: string, description?: string, thumbnail?: string, duration?: int, created?: string, key?: string}
      */
-    public static function meta(string $id, string $key = ''): array
+    public static function meta(string $id, string $key = '', string $provider = 'rutube'): array
     {
         $cache = null;
-        $cacheId = md5($id . '|' . $key);
+        $cacheId = md5($provider . '|' . $id . '|' . $key);
 
         try {
             $cache = Factory::getContainer()
@@ -178,7 +214,7 @@ class RutubeHelper
             $cache = null;
         }
 
-        $data = self::fetch($id, $key);
+        $data = $provider === 'vk' ? self::fetchVk($id, $key) : self::fetch($id, $key);
 
         try {
             $cache?->store(json_encode($data), $cacheId);
@@ -220,6 +256,67 @@ class RutubeHelper
     }
 
     /**
+     * VK Video has no public API without a token, so the data is read from the
+     * embed page (windows-1251), which carries the video in its player config.
+     */
+    private static function fetchVk(string $id, string $key): array
+    {
+        [$oid, $vid] = explode('_', $id, 2);
+        $url = 'https://vk.com/video_ext.php?' . http_build_query(array_filter(['oid' => $oid, 'id' => $vid, 'hash' => $key]));
+
+        try {
+            $response = HttpFactory::getHttp()->get($url, [
+                'Accept' => 'text/html',
+                'Accept-Language' => 'ru,en;q=0.8',
+                'User-Agent' => 'Mozilla/5.0 (compatible; YT-RuTube/' . self::VERSION . ')',
+            ], 5);
+
+            $html = $response->getStatusCode() === 200 ? (string) $response->getBody() : '';
+        } catch (\Throwable) {
+            $html = '';
+        }
+
+        if (!preg_match('~charset=["\']?utf-8~i', substr($html, 0, 2000)) && !mb_check_encoding($html, 'UTF-8')) {
+            $html = mb_convert_encoding($html, 'UTF-8', 'Windows-1251');
+        }
+
+        $string = static fn(string $name) => preg_match('~"' . $name . '":("(?:[^"\\\\]|\\\\.)*")~', $html, $m)
+            ? html_entity_decode((string) json_decode($m[1]), ENT_QUOTES, 'UTF-8')
+            : '';
+
+        $title = preg_match('~"title":("(?:[^"\\\\]|\\\\.)*"),"player":~', $html, $m)
+            ? html_entity_decode((string) json_decode($m[1]), ENT_QUOTES, 'UTF-8')
+            : '';
+
+        if ($title === '') {
+            return ['error' => true, 'time' => time()];
+        }
+
+        // The largest poster image
+        $thumbnail = '';
+
+        if (preg_match('~"image":(\[[^\]]*\])~', $html, $m) && is_array($images = json_decode($m[1], true))) {
+            usort($images, static fn($a, $b) => ($b['width'] ?? 0) <=> ($a['width'] ?? 0));
+            $thumbnail = (string) ($images[0]['url'] ?? '');
+        }
+
+        // Embedding needs the hash for some videos
+        if ($key === '' && preg_match('~video_ext\.php\?oid=' . preg_quote($oid, '~') . '&id=' . $vid . '&hash=([0-9a-f]+)~', str_replace('\\/', '/', $html), $m)) {
+            $key = $m[1];
+        }
+
+        return [
+            'title' => $title,
+            'description' => $string('description'),
+            'thumbnail' => $thumbnail,
+            'duration' => preg_match('~"duration":(\d+)~', $html, $m) ? (int) $m[1] : 0,
+            'created' => preg_match('~"date":(\d{9,})~', $html, $m) ? gmdate('c', (int) $m[1]) : '',
+            'key' => $key,
+            'time' => time(),
+        ];
+    }
+
+    /**
      * Resolves the video and prepares everything the template needs.
      * Without a RuTube video the builder shows a placeholder and the site shows nothing.
      */
@@ -244,7 +341,9 @@ class RutubeHelper
             return true;
         }
 
-        $meta = !empty($props['fetch_meta']) ? self::meta($video['id'], $video['key']) : [];
+        $vk = $video['provider'] === 'vk';
+        $meta = !empty($props['fetch_meta']) ? self::meta($video['id'], $video['key'], $video['provider']) : [];
+        $key = $video['key'] ?: (string) ($meta['key'] ?? '');
 
         $start = trim((string) ($props['start'] ?? '')) !== ''
             ? self::parseTime((string) $props['start'])
@@ -260,13 +359,18 @@ class RutubeHelper
                 $poster = Uri::root(true) . '/' . ltrim($poster, '/');
             }
         } else {
-            $poster = ($meta['thumbnail'] ?? '') ?: self::thumbnailUrl($video['id']);
+            $poster = ($meta['thumbnail'] ?? '') ?: ($vk ? '' : self::thumbnailUrl($video['id']));
         }
 
-        // Player options are passed as URL params and applied by ytrutube.js
-        // via the postMessage API: https://github.com/rutube/RutubePlayerJSAPI
+        // Player options are passed as URL params and applied by ytrutube.js via the
+        // postMessage API of the player: https://github.com/rutube/RutubePlayerJSAPI,
+        // https://dev.vk.com/ru/widgets/video (VK.VideoPlayer, needs js_api=1)
         $skin = ltrim((string) ($props['skin_color'] ?? ''), '#');
-        $params = [
+        $params = $vk ? [
+            'hd' => 2,
+            't' => $start ? $start . 's' : null,
+            'js_api' => 1,
+        ] : [
             'bmstart' => $start,
             't' => $start,
             'mute' => !empty($props['mute']) ? 1 : null,
@@ -275,9 +379,13 @@ class RutubeHelper
 
         $props['ytrutube'] = [
             'stub' => false,
+            'provider' => $video['provider'],
             'id' => $video['id'],
-            'embed' => self::embedUrl($video['id'], $video['key'], $params),
-            'url' => self::videoUrl($video['id'], $video['key']),
+            'embed' => self::embedUrl($video['id'], $key, $params, $video['provider']),
+            'player' => self::embedUrl($video['id'], $key, [], $video['provider']),
+            'url' => self::videoUrl($video['id'], $key, $video['provider']),
+            'start' => $start,
+            'mute' => !empty($props['mute']),
             'poster' => $poster,
             'title' => trim((string) ($props['title'] ?? '')) ?: ($meta['title'] ?? ''),
             'ratio' => self::parseRatio(self::ratio($props)),
