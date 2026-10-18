@@ -2,6 +2,12 @@
 
 All notable changes to YT RuTube. Versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.4.1] — 2026-10-18
+
+### Fixed
+- *When scrolled into view* mode: the player replaced the poster as soon as it loaded, so the poster was never seen. The player now loads behind the poster, and Play on the poster starts it.
+- The poster comes back after the video ends also when the player reports the end only as a `completed` state.
+
 ## [1.4.0] — 2026-10-18
 
 ### Added

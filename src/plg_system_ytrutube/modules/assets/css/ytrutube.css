@@ -210,6 +210,16 @@
     pointer-events: none;
 }
 
+/* Viewport mode: the player has loaded behind the poster and waits for Play */
+.ytrutube--standby .ytrutube__poster {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.ytrutube--standby .ytrutube__play { animation: none; }
+
 @keyframes ytrutube-pulse {
     to { opacity: .55; }
 }
