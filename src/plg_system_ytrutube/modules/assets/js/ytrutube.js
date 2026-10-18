@@ -13,6 +13,13 @@
     var PAUSE_CHECK = 1500;
     var PAUSE_GRACE = 700;
     var TICK_WINDOW = 1500;
+    var SEEK_CHECK = 1500;
+    var RELOAD_DELAY = 400;
+    // Ad blockers block this script; the same blocking breaks RuTube's ad module
+    // and with it the player's commands (pause, seek, mute).
+    var BAIT = 'https://yandex.ru/ads/system/context.js';
+    var blocked = null;
+    var ignored = false;
     var DEBUG = /[?&]ytrutube_debug=1/.test(location.search);
     var players = [];
     var preconnected = false;
@@ -61,6 +68,41 @@
         return src + (src.indexOf('?') === -1 ? '?' : '&') + name + '=' + encodeURIComponent(value);
     }
 
+    // Embed link with a start position and sound state, as the player can be
+    // (re)loaded with them when it ignores commands
+    function withState(src, time, muted) {
+        src = src.replace(/([?&])(bmstart|t|mute)=[^&]*/g, '$1').replace(/&{2,}/g, '&').replace(/[?&]+$/, '').replace('?&', '?');
+
+        if (time > 0) {
+            src = addParam(addParam(src, 'bmstart', time), 't', time);
+        }
+
+        return muted ? addParam(src, 'mute', 1) : src;
+    }
+
+    function detectBlocker() {
+        if (blocked !== null || !window.fetch) {
+            return;
+        }
+
+        blocked = false;
+        fetch(BAIT, { mode: 'no-cors', cache: 'no-store', credentials: 'omit' }).catch(function () {
+            blocked = true;
+            log('ad blocker detected: player commands are emulated by reloading the player');
+        });
+    }
+
+    // The player is known to ignore commands
+    function isIgnoring(player) {
+        return blocked === true || ignored || !!player.ignored;
+    }
+
+    function markIgnored(player, what) {
+        log(what, 'ignored by the player');
+        player.ignored = true;
+        ignored = true;
+    }
+
     function getOptions(root) {
         try {
             return JSON.parse(root.getAttribute('data-ytrutube-ui') || '{}');
@@ -107,8 +149,9 @@
 
         // Continue after a hard pause
         if (resume > 0) {
+            src = withState(src, resume, root.getAttribute('data-ytrutube-muted') === '1');
             root.removeAttribute('data-ytrutube-resume');
-            src = addParam(addParam(src.replace(/([?&])(bmstart|t)=\d+/g, '$1').replace(/[?&]+$/, '').replace(/&&+/g, '&').replace('?&', '?'), 'bmstart', resume), 't', resume);
+            root.removeAttribute('data-ytrutube-muted');
         }
 
         iframe.className = 'ytrutube__iframe';
@@ -141,20 +184,10 @@
             // to start it, and ads may need one too.
             box.classList.add('ytrutube__box--waiting');
             buildControls(player);
+            detectBlocker();
         }
 
-        iframe.addEventListener('load', function () {
-            box.classList.add('ytrutube__box--loaded');
-
-            if (inline) {
-                root.classList.add('ytrutube--loaded');
-            }
-
-            // Fallback in case "player:ready" was sent before we listened
-            setTimeout(function () {
-                setup(player);
-            }, 1500);
-        });
+        onLoad(player, iframe);
 
         if (inline) {
             root.classList.add('ytrutube--active');
@@ -168,6 +201,57 @@
         }
 
         return player;
+    }
+
+    function onLoad(player, iframe) {
+        iframe.addEventListener('load', function () {
+            if (iframe !== player.iframe) {
+                return;
+            }
+
+            player.box.classList.add('ytrutube__box--loaded');
+
+            if (player.inline) {
+                player.root.classList.add('ytrutube--loaded');
+            }
+
+            // Fallback in case "player:ready" was sent before we listened
+            setTimeout(function () {
+                if (iframe === player.iframe) {
+                    setup(player);
+                }
+            }, 1500);
+        });
+    }
+
+    // When the player ignores commands (ad blocker), load it again at the wanted
+    // position and sound state. Repeated clicks and keys are collected first.
+    function reload(player, time) {
+        player.time = Math.max(0, time);
+        player.reloading = true;
+        update(player);
+        clearTimeout(player.reloadTimer);
+
+        player.reloadTimer = setTimeout(function () {
+            if (players.indexOf(player) === -1) {
+                return;
+            }
+
+            var src = withState(player.root.getAttribute('data-ytrutube-src'), Math.floor(player.time), player.muted);
+            var iframe = player.iframe.cloneNode(false);
+
+            log('reloading the player at', Math.floor(player.time), player.muted ? 'muted' : '');
+            iframe.src = player.playing ? addParam(src, 'autoplay', 1) : src;
+            [player.startTimer, player.playTimer, player.pauseTimer, player.seekTimer].forEach(clearTimeout);
+            player.iframe.parentNode.replaceChild(iframe, player.iframe);
+            player.iframe = iframe;
+            player.params = getParams(iframe.src);
+            player.ready = player.optionsApplied = player.started = player.confirmed = player.advert = false;
+            player.lastTick = 0;
+            player.reloading = false;
+            onLoad(player, iframe);
+            update(player);
+        }, RELOAD_DELAY);
     }
 
     // Apply appearance options once the player reports it is ready
@@ -222,7 +306,7 @@
         }
 
         players.splice(index, 1);
-        clearTimeout(player.hideTimer);
+        [player.hideTimer, player.reloadTimer, player.seekTimer, player.pauseTimer, player.playTimer].forEach(clearTimeout);
 
         if (isFullscreen(player)) {
             toggleFullscreen(player);
@@ -466,6 +550,11 @@
         clearTimeout(player.playTimer);
         clearTimeout(player.pauseTimer);
 
+        if (!player.playing && isIgnoring(player) && player.lastTick) {
+            hardPause(player);
+            return;
+        }
+
         if (!player.playing) {
             // When RuTube's ad module is blocked, the player resumes right after a pause.
             // If the playback time still moves well after the pause command (ticks already
@@ -474,6 +563,7 @@
 
             player.pauseTimer = setTimeout(function () {
                 if (player.lastTick > pausedAt + PAUSE_GRACE) {
+                    markIgnored(player, 'pause');
                     hardPause(player);
                 }
             }, PAUSE_CHECK);
@@ -497,21 +587,51 @@
     }
 
     function hardPause(player) {
-        log('pause ignored by the player, unloading it at', Math.floor(player.time));
-        player.root.setAttribute('data-ytrutube-resume', Math.floor(player.time));
+        log('unloading the player at', Math.floor(player.time));
+        player.root.setAttribute('data-ytrutube-resume', Math.max(1, Math.floor(player.time)));
+        player.root.setAttribute('data-ytrutube-muted', player.muted ? '1' : '0');
         destroy(player);
     }
 
+    // Sound state can't be read back from the player, so with an ad blocker
+    // the player is reloaded with the "mute" parameter
     function toggleMute(player) {
         player.muted = !player.muted;
-        send(player, player.muted ? 'player:mute' : 'player:unMute');
+
+        if (isIgnoring(player)) {
+            reload(player, player.time);
+        } else {
+            send(player, player.muted ? 'player:mute' : 'player:unMute');
+        }
+
         update(player);
     }
 
     function seek(player, time) {
-        player.time = Math.min(Math.max(0, time), player.duration || time);
-        send(player, 'player:setCurrentTime', { time: player.time });
+        var target = Math.min(Math.max(0, time), player.duration || time);
+
+        clearTimeout(player.seekTimer);
+
+        if (isIgnoring(player)) {
+            reload(player, target);
+            return;
+        }
+
+        player.time = target;
+        send(player, 'player:setCurrentTime', { time: target });
         update(player);
+
+        // Seeking is ignored if the video keeps playing from the old position
+        var seekedAt = Date.now();
+
+        player.seekTimer = setTimeout(function () {
+            var expected = target + (Date.now() - seekedAt) / 1000;
+
+            if (player.lastTick > seekedAt + PAUSE_GRACE && Math.abs(player.time - expected) > 4) {
+                markIgnored(player, 'seek');
+                reload(player, expected);
+            }
+        }, SEEK_CHECK);
     }
 
     function isFullscreen(player) {
@@ -779,6 +899,11 @@
                 break;
 
             case 'player:currentTime':
+                // The old player still reports its position until it is replaced
+                if (player.reloading) {
+                    break;
+                }
+
                 // A single report is not a start signal (RuTube reports the saved resume
                 // position before playback); time moving forward is.
                 var time = parseFloat(data.time) || 0;

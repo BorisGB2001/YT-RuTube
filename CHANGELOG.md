@@ -2,6 +2,11 @@
 
 All notable changes to YT RuTube. Versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.2.1] — 2026-10-18
+
+### Fixed
+- Own controls with an ad blocker: seeking and sound did not work, because the blocked RuTube ad module makes the player ignore commands. An ad blocker is detected when the player starts (or a pause or seek is seen to be ignored); then seeking and sound reload the player at the new position with the right sound state, and pause unloads it at once.
+
 ## [1.2.0] — 2026-10-18
 
 ### Changed
