@@ -63,6 +63,11 @@ To update, install the new version over the old one or use *System → Update �
 
 To refresh the data right away, clear the `plg_system_ytrutube` group in *System → Clear Cache*.
 
+## Troubleshooting
+
+- **Video does not start or pause with an ad blocker.** Ad blockers break the RuTube player's ad module (the console shows `ERR_BLOCKED_BY_CLIENT` and `Ya is not defined` from RuTube). YT RuTube works around it, but if the video still misbehaves, check the page with the blocker turned off.
+- **Diagnostics.** Open the page with `?ytrutube_debug=1`, e.g. `https://example.com/page?ytrutube_debug=1`: player events and commands are logged to the browser console (F12 → Console), lines start with `[YT RuTube]`.
+
 ## Development
 
 ```

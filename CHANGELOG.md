@@ -2,6 +2,11 @@
 
 All notable changes to YT RuTube. Versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.1.4] — 2026-10-18
+
+### Fixed
+- Pause did not work with an ad blocker: the blocked RuTube ad module leaves the player reporting wrong states (stuck "advert" or none), so the play button sent "play" instead of "pause" or the click went to the ad module. Playback is now judged by the playback time actually moving; ads are detected only by `player:rollState`; the pause command is repeated if the video keeps playing.
+
 ## [1.1.3] — 2026-10-18
 
 ### Fixed

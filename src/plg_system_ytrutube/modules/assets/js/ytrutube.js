@@ -10,6 +10,8 @@
     var SEEK_STEP = 10;
     var HIDE_DELAY = 2500;
     var START_TIMEOUT = 2000;
+    var PAUSE_RETRY = 1000;
+    var TICK_WINDOW = 1500;
     var DEBUG = /[?&]ytrutube_debug=1/.test(location.search);
     var players = [];
     var preconnected = false;
@@ -241,6 +243,12 @@
         }
     }
 
+    // The player's state events are unreliable when an ad blocker breaks RuTube's ad
+    // module, so playback is judged by the playback time actually moving.
+    function isAdvancing(player) {
+        return Date.now() - (player.lastTick || 0) < TICK_WINDOW;
+    }
+
     // The video really plays: cover the RuTube player and hide its own controls
     function markStarted(player) {
         if (player.started) {
@@ -443,17 +451,28 @@
     }
 
     function togglePlay(player) {
-        player.playing = !player.playing;
+        var playingNow = player.lastTick ? isAdvancing(player) : player.playing;
+
+        player.playing = !playingNow;
         send(player, player.playing ? 'player:play' : 'player:pause');
         clearTimeout(player.playTimer);
+        clearTimeout(player.pauseTimer);
 
-        if (player.playing) {
+        if (!player.playing) {
+            // Repeat the pause if the video keeps going
+            player.pauseTimer = setTimeout(function () {
+                if (isAdvancing(player)) {
+                    log('still playing, pause again');
+                    send(player, 'player:pause');
+                }
+            }, PAUSE_RETRY);
+        } else {
             pauseOthers(player);
 
             // The browser may block a start that wasn't clicked inside the player:
             // let the next click through to the RuTube player.
             player.playTimer = setTimeout(function () {
-                if (!player.confirmed) {
+                if (!player.confirmed && !isAdvancing(player)) {
                     log('play not confirmed, clicks go to the RuTube player');
                     player.playing = false;
                     player.started = false;
@@ -717,9 +736,9 @@
                 break;
 
             case 'player:changeState':
-                // States: loading, playing, pause, completed, advert (older players: paused, stopped)
-                player.advert = data.state === 'advert';
-
+                // States: loading, playing, pause, completed, advert (older players: paused, stopped).
+                // "advert" alone is not trusted: with a blocked ad module it can stick while the
+                // video plays. Ads are detected by player:rollState instead.
                 player.confirmed = data.state === 'playing';
 
                 if (data.state === 'playing') {
@@ -731,9 +750,6 @@
                 } else if (/^(pause|paused|stopped|completed)$/.test(data.state)) {
                     player.playing = false;
                     player.box.classList.remove('ytrutube__box--idle');
-                } else if (player.advert) {
-                    player.playing = !!data.isPlaying;
-                    pauseOthers(player);
                 }
 
                 update(player);
@@ -745,8 +761,22 @@
                 break;
 
             case 'player:currentTime':
-                // Not a start signal: RuTube reports the saved resume position before playback
-                player.time = parseFloat(data.time) || 0;
+                // A single report is not a start signal (RuTube reports the saved resume
+                // position before playback); time moving forward is.
+                var time = parseFloat(data.time) || 0;
+
+                if (time > player.time && time - player.time < 5 && !player.advert) {
+                    if (player.lastTick) {
+                        player.confirmed = true;
+                        player.playing = true;
+                        clearTimeout(player.playTimer);
+                        markStarted(player);
+                    }
+
+                    player.lastTick = Date.now();
+                }
+
+                player.time = time;
                 update(player);
                 break;
 
